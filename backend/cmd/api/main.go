@@ -11,15 +11,15 @@ import (
 	"syscall"
 	"time"
 
-	"novame/backend/internal/api"
-	"novame/backend/internal/auth"
-	"novame/backend/internal/billing"
-	"novame/backend/internal/cache"
-	"novame/backend/internal/config"
-	"novame/backend/internal/db"
+	"saas-core-template/backend/internal/api"
+	"saas-core-template/backend/internal/auth"
+	"saas-core-template/backend/internal/billing"
+	"saas-core-template/backend/internal/cache"
+	"saas-core-template/backend/internal/config"
+	"saas-core-template/backend/internal/db"
 )
 
-const appName = "novame-api"
+const appName = "saas-core-template-api"
 
 func main() {
 	cfg, err := config.Load()

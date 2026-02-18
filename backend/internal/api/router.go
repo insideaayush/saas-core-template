@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
-	"novame/backend/internal/auth"
-	"novame/backend/internal/billing"
+	"saas-core-template/backend/internal/auth"
+	"saas-core-template/backend/internal/billing"
 )
 
 type Server struct {

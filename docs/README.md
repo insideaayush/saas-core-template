@@ -4,10 +4,11 @@ This directory contains implementation playbooks for contributors and AI agents.
 
 ## First 30 minutes
 
-1. Read `../AGENTS.md` for non-negotiable architecture and security guardrails.
-2. Review the architecture playbooks in `docs/architecture/`.
-3. Review the operations playbooks in `docs/operations/`.
-4. Confirm your change keeps provider boundaries portable and tenant isolation strict.
+1. Run `./scripts/init-template.sh "<new-project-name>"` if this is a new clone from template.
+2. Read `../AGENTS.md` for non-negotiable architecture and security guardrails.
+3. Review the architecture playbooks in `docs/architecture/`.
+4. Review the operations playbooks in `docs/operations/`.
+5. Confirm your change keeps provider boundaries portable and tenant isolation strict.
 
 ## Architecture playbooks
 
@@ -24,6 +25,23 @@ This directory contains implementation playbooks for contributors and AI agents.
   - Baseline controls and evidence expectations.
 - [Provider Migration Playbook](operations/provider-migration-playbook.md)
   - Dual-run, just-in-time migration, and cutover strategy.
+- [Agent Workflow Runbook](operations/agent-workflow.md)
+  - Standard protocol for agent-assisted planning, implementation, validation, and delivery.
+
+## Project skills
+
+Project-scoped Cursor skills live in `.cursor/skills/` and should be used by agents proactively:
+
+- `saas-system-design`
+  - Architecture decision workflows and SaaS boundary design.
+- `saas-implementation-patterns`
+  - Implementation patterns for auth, tenancy, billing, webhooks, and migration safety.
+- `saas-architecture-review-gate`
+  - Pre-merge architecture/risk review checklist and findings format.
+- `go-saas-patterns`
+  - Go backend patterns for readable, testable, and extensible service architecture.
+- `typescript-saas-patterns`
+  - TypeScript/Next.js patterns for typed boundaries, composable modules, and testable UI/domain logic.
 
 ## Contribution checklist
 

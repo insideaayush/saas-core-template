@@ -3,8 +3,8 @@ import "./globals.css";
 import { AppClerkProvider } from "./clerk-provider";
 
 export const metadata: Metadata = {
-  title: "Novame WebOS",
-  description: "Personal operating system shell for life and work."
+  title: "SaaS Core Template",
+  description: "Startup-ready SaaS template with auth, multi-tenant, and billing foundations."
 };
 
 export default function RootLayout({

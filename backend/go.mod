@@ -1,4 +1,4 @@
-module novame/backend
+module saas-core-template/backend
 
 go 1.22.0
 

@@ -1,9 +1,9 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: novame-postgres
+    container_name: saas-core-template-postgres
     environment:
-      POSTGRES_DB: novame
+      POSTGRES_DB: saas_core_template
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -11,14 +11,14 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d novame"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d saas_core_template"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: novame-redis
+    container_name: saas-core-template-redis
     ports:
       - "6379:6379"
     healthcheck:

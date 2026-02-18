@@ -8,6 +8,82 @@ This file defines non-negotiable engineering guardrails for humans and AI agents
 - It must be quick to launch while preserving portability across auth and billing providers.
 - Domain ownership stays in application storage even when managed providers are used.
 
+## Template initialization protocol
+
+- Before feature work on a new clone, initialize project naming:
+  - Run `./scripts/init-template.sh "<new-project-name>"`.
+  - Use a lowercase kebab-case name (for example `acme-core`).
+- The script must be run from the repository root.
+- After initialization, verify rename integrity:
+  - Run `rg "saas-core-template|saas_core_template"`.
+  - Expected remaining matches should be only intentional references (for example instructions in `scripts/init-template.sh` or docs explaining initialization).
+- If unintended template-name references remain, replace them before implementing product changes.
+- Do not manually edit Go module/import paths first; always run the init script before any manual rename fixes.
+
+## Agent operating workflow
+
+- Follow this order for all implementation tasks:
+  1. Read `AGENTS.md` and relevant playbooks in `docs/`.
+  2. Load relevant project skills from `.cursor/skills/` for design/implementation/review tasks.
+  3. Confirm naming initialization is complete.
+  4. Inspect existing code before designing changes.
+  5. Implement minimal, scope-limited changes.
+  6. Run validation commands.
+  7. Update docs when behavior/contracts changed.
+- Prefer small, composable edits over broad rewrites.
+- Preserve existing architecture boundaries and avoid introducing hidden coupling.
+- If requirements conflict with these guardrails, stop and ask for explicit product/architecture direction.
+
+## Required pre-flight checks
+
+- Verify repository naming:
+  - `rg "saas-core-template|saas_core_template"` and confirm only intentional matches.
+- Confirm environment setup files remain aligned:
+  - `.env.example`
+  - `backend/.env.example`
+  - `frontend/.env.example`
+- Confirm changes are scoped to the requested task and do not include unrelated refactors.
+
+## Validation gates before completion
+
+- Backend:
+  - Run `go test ./...` in `backend/` when possible.
+  - Run `gofmt` on changed Go files.
+- Frontend:
+  - Run `npm run lint` and `npm run typecheck` in `frontend/`.
+  - Run `npm run build` for route/config changes.
+- Cross-cutting:
+  - Re-run targeted searches for old identifiers and stale provider references.
+  - Verify no secrets were added to tracked files.
+
+## Git and change hygiene
+
+- Never commit `.env` or secret material.
+- Keep commit messages focused on intent and impact.
+- Do not bundle unrelated concerns in the same commit.
+- Do not force-push protected branches.
+- If push/auth fails locally, report exact failure and next remediation commands.
+
+## Documentation update policy
+
+- Any change to auth, tenancy, billing, migrations, deployment, or initialization must update docs in the same task.
+- Required docs touchpoints by change type:
+  - Auth identity flow: `docs/architecture/auth-and-identity.md`
+  - Tenant model/rules: `docs/architecture/multi-tenant-model.md`
+  - Billing flow/webhooks: `docs/architecture/billing-and-pricing.md`
+  - Control/evidence posture: `docs/operations/compliance-soc2-foundations.md`
+  - Provider swap/cutover behavior: `docs/operations/provider-migration-playbook.md`
+  - Agent protocol changes: `AGENTS.md` and `docs/operations/agent-workflow.md`
+
+## Default implementation preferences
+
+- Keep provider-specific logic inside adapters/services; do not leak SDK-specific shapes into domain models.
+- Prefer explicit DTOs and typed request/response contracts at API boundaries.
+- Keep tenant authorization checks centralized and deny-by-default.
+- Make webhook/event handlers idempotent and replay-safe.
+- For Go backend changes, apply `.cursor/skills/go-saas-patterns`.
+- For TypeScript/Next.js changes, apply `.cursor/skills/typescript-saas-patterns`.
+
 ## Hard architecture boundaries
 
 - Use internal `user_id` as the primary identity key across all domain tables.

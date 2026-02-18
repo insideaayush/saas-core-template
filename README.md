@@ -1,6 +1,6 @@
-# Novame WebOS Shell
+# saas-core-template
 
-Production-shaped foundation for a personal WebOS project.
+Production-shaped foundation for launching a startup SaaS baseline quickly.
 
 ## Stack
 - Frontend: Next.js (TypeScript)
@@ -109,9 +109,9 @@ GitHub Actions workflow runs on pull requests and pushes to `main`:
 
 ## Render deployment
 `render.yaml` defines:
-- `novame-backend` (Go web service)
-- `novame-frontend` (Node web service for Next.js)
-- `novame-postgres` (managed Postgres)
+- `saas-core-template-backend` (Go web service)
+- `saas-core-template-frontend` (Node web service for Next.js)
+- `saas-core-template-postgres` (managed Postgres)
 
 ### Setup steps on Render
 1. Connect this GitHub repository in Render.
@@ -128,4 +128,12 @@ Deployment flow:
 - Local Redis exists for parity; production uses Upstash Redis.
 - `main` branch protection should require CI checks before merge.
 - Auth/billing provider boundaries and migration playbooks are documented in `docs/`.
-# saas-core-template
+## Initialize from template
+
+After cloning, run:
+
+```bash
+./scripts/init-template.sh "your-project-name"
+```
+
+This replaces `saas-core-template` references across tracked files (including Go module/import paths and deployment service names) and prints follow-up commands.
