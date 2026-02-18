@@ -18,6 +18,8 @@ This directory contains implementation playbooks for contributors and AI agents.
   - Organization/workspace model and authorization checks.
 - [Billing and Pricing](architecture/billing-and-pricing.md)
   - Internal subscription state, checkout, webhook synchronization.
+- [Business Logic Documentation](architecture/business-logic-documentation.md)
+  - Canonical structure and maintenance rules for domain/business docs.
 
 ## Operations playbooks
 
@@ -27,6 +29,8 @@ This directory contains implementation playbooks for contributors and AI agents.
   - Dual-run, just-in-time migration, and cutover strategy.
 - [Agent Workflow Runbook](operations/agent-workflow.md)
   - Standard protocol for agent-assisted planning, implementation, validation, and delivery.
+- [Git Branching and Versioning](operations/git-branching-and-versioning.md)
+  - Branch strategy (`main`/`develop`/`dev`) and SemVer release flow.
 
 ## Project skills
 
@@ -42,6 +46,8 @@ Project-scoped Cursor skills live in `.cursor/skills/` and should be used by age
   - Go backend patterns for readable, testable, and extensible service architecture.
 - `typescript-saas-patterns`
   - TypeScript/Next.js patterns for typed boundaries, composable modules, and testable UI/domain logic.
+- `saas-git-workflow`
+  - Branch selection, PR routing, commit hygiene, and template versioning decisions.
 
 ## Contribution checklist
 

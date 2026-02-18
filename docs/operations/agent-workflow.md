@@ -49,6 +49,11 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
 - Never commit secrets or `.env` files.
 - Keep commits cohesive and task-specific.
 - If push fails, report the exact error and remediation steps.
+- Follow branch policy:
+  - feature work on `dev` or `feature/*`
+  - integrate via `develop`
+  - release via `main`
+- Keep `VERSION` in SemVer format and update it intentionally for release scope.
 
 ## 7) Completion criteria
 

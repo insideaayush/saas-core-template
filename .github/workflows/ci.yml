@@ -2,14 +2,29 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop", "dev", "feature/**"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "develop", "dev"]
 
 jobs:
+  version:
+    name: Version Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate VERSION format (SemVer)
+        run: |
+          test -f VERSION
+          VERSION_VALUE="$(cat VERSION)"
+          echo "VERSION=${VERSION_VALUE}"
+          echo "${VERSION_VALUE}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'
+
   backend:
     name: Backend (Go)
     runs-on: ubuntu-latest
+    needs: version
     defaults:
       run:
         working-directory: backend
@@ -35,6 +50,7 @@ jobs:
   frontend:
     name: Frontend (Next.js)
     runs-on: ubuntu-latest
+    needs: version
     defaults:
       run:
         working-directory: frontend

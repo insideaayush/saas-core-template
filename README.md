@@ -103,9 +103,31 @@ Run locally:
 make ci
 ```
 
-GitHub Actions workflow runs on pull requests and pushes to `main`:
+GitHub Actions workflow runs on pull requests and pushes to `main`, `develop`, `dev`, and `feature/*`:
 - Backend: `go test`, `go vet`, build
 - Frontend: install, lint, typecheck, build
+
+CI currently runs on `main`, `develop`, and `dev` branches.
+
+## Branch strategy
+
+- `main`: release branch
+- `develop`: integration branch
+- `dev` or `feature/*`: feature implementation branches
+
+Recommended flow:
+
+1. Build in `dev` or `feature/*`.
+2. Open PR into `develop`.
+3. Release from `develop` into `main`.
+
+## Versioning
+
+- Template version source of truth: `VERSION`
+- Versioning scheme: SemVer (`MAJOR.MINOR.PATCH`)
+- CI validates `VERSION` format on `main`, `develop`, and `dev`.
+
+See `docs/operations/git-branching-and-versioning.md` for full guidance.
 
 ## Render deployment
 `render.yaml` defines:

@@ -63,14 +63,22 @@ This file defines non-negotiable engineering guardrails for humans and AI agents
 - Do not bundle unrelated concerns in the same commit.
 - Do not force-push protected branches.
 - If push/auth fails locally, report exact failure and next remediation commands.
+- Apply `.cursor/skills/saas-git-workflow` for branch selection, PR routing, and release/version decisions.
+- Follow branch policy:
+  - `main` is release-only.
+  - `develop` is integration branch.
+  - `dev` or `feature/*` is for feature implementation.
+- Keep `VERSION` as the template semantic version source of truth.
 
 ## Documentation update policy
 
 - Any change to auth, tenancy, billing, migrations, deployment, or initialization must update docs in the same task.
+- Any change to business/domain behavior must update business docs according to `docs/architecture/business-logic-documentation.md`.
 - Required docs touchpoints by change type:
   - Auth identity flow: `docs/architecture/auth-and-identity.md`
   - Tenant model/rules: `docs/architecture/multi-tenant-model.md`
   - Billing flow/webhooks: `docs/architecture/billing-and-pricing.md`
+  - Domain/business rules organization and lifecycle: `docs/architecture/business-logic-documentation.md`
   - Control/evidence posture: `docs/operations/compliance-soc2-foundations.md`
   - Provider swap/cutover behavior: `docs/operations/provider-migration-playbook.md`
   - Agent protocol changes: `AGENTS.md` and `docs/operations/agent-workflow.md`
