@@ -1,0 +1,342 @@
+package api
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+	"novame/backend/internal/auth"
+	"novame/backend/internal/billing"
+)
+
+type Server struct {
+	appName    string
+	env        string
+	version    string
+	appBaseURL string
+	db         *pgxpool.Pool
+	redis      *redis.Client
+	auth       *auth.Service
+	billing    *billing.Service
+}
+
+type serverOptions struct {
+	authService    *auth.Service
+	billingService *billing.Service
+	appBaseURL     string
+}
+
+func NewServer(appName string, env string, version string, db *pgxpool.Pool, redisClient *redis.Client, opts ...func(*serverOptions)) *Server {
+	options := serverOptions{}
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	return &Server{
+		appName:    appName,
+		env:        env,
+		version:    version,
+		appBaseURL: strings.TrimRight(defaultString(options.appBaseURL, "http://localhost:3000"), "/"),
+		db:         db,
+		redis:      redisClient,
+		auth:       options.authService,
+		billing:    options.billingService,
+	}
+}
+
+func WithAuthService(authService *auth.Service) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.authService = authService
+	}
+}
+
+func WithBillingService(billingService *billing.Service) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.billingService = billingService
+	}
+}
+
+func WithAppBaseURL(appBaseURL string) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.appBaseURL = strings.TrimSpace(appBaseURL)
+	}
+}
+
+func (s *Server) Handler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", s.healthz)
+	mux.HandleFunc("GET /readyz", s.readyz)
+	mux.HandleFunc("GET /api/v1/meta", s.meta)
+	mux.HandleFunc("GET /api/v1/auth/me", s.requireAuth(s.authMe))
+	mux.HandleFunc("POST /api/v1/billing/checkout-session", s.requireOrg(s.billingCheckoutSession))
+	mux.HandleFunc("POST /api/v1/billing/portal-session", s.requireOrg(s.billingPortalSession))
+	mux.HandleFunc("POST /api/v1/billing/webhook", s.billingWebhook)
+
+	return withCommonMiddleware(mux)
+}
+
+func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *Server) readyz(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	if err := s.db.Ping(ctx); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"status": "not_ready",
+			"reason": "database_unreachable",
+		})
+		return
+	}
+
+	if err := s.redis.Ping(ctx).Err(); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"status": "not_ready",
+			"reason": "redis_unreachable",
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+}
+
+func (s *Server) meta(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{
+		"app":     s.appName,
+		"env":     s.env,
+		"version": s.version,
+		"time":    time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+func withCommonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Organization-ID")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+type authContextKey string
+
+const (
+	authUserContextKey authContextKey = "auth_user"
+	authOrgContextKey  authContextKey = "auth_org"
+)
+
+func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.auth == nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "auth_not_configured"})
+			return
+		}
+
+		token, err := auth.ExtractBearerToken(r)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing_or_invalid_token"})
+			return
+		}
+
+		user, err := s.auth.Authenticate(r.Context(), token)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication_failed"})
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), authUserContextKey, user)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
+
+func (s *Server) requireOrg(next http.HandlerFunc) http.HandlerFunc {
+	return s.requireAuth(func(w http.ResponseWriter, r *http.Request) {
+		user := authUserFromContext(r.Context())
+		if user.ID == "" {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "user_not_found"})
+			return
+		}
+
+		requestedOrgID := strings.TrimSpace(r.Header.Get("X-Organization-ID"))
+		org, err := s.auth.ResolveOrganization(r.Context(), user.ID, requestedOrgID)
+		if err != nil {
+			if errors.Is(err, auth.ErrNoOrganization) {
+				writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_not_found"})
+				return
+			}
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "organization_resolution_failed"})
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), authOrgContextKey, org)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (s *Server) authMe(w http.ResponseWriter, r *http.Request) {
+	user := authUserFromContext(r.Context())
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		resolved, err := s.auth.ResolveOrganization(r.Context(), user.ID, "")
+		if err == nil {
+			org = resolved
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user":         user,
+		"organization": org,
+	})
+}
+
+func (s *Server) billingCheckoutSession(w http.ResponseWriter, r *http.Request) {
+	if s.billing == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "billing_not_configured"})
+		return
+	}
+
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	var req struct {
+		PlanCode string `json:"planCode"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request_body"})
+		return
+	}
+
+	priceID, err := s.billing.LookupPlanPriceID(r.Context(), req.PlanCode)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unknown_or_inactive_plan"})
+		return
+	}
+
+	customerID, _ := s.billing.GetOrganizationCustomerID(r.Context(), org.ID)
+	session, err := s.billing.CreateCheckoutSession(r.Context(), billing.CheckoutSessionInput{
+		OrganizationID: org.ID,
+		CustomerID:     customerID,
+		PriceID:        priceID,
+		SuccessURL:     s.defaultSuccessURL(),
+		CancelURL:      s.defaultPricingURL(),
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed_to_create_checkout_session"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"url": session.URL})
+}
+
+func (s *Server) billingPortalSession(w http.ResponseWriter, r *http.Request) {
+	if s.billing == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "billing_not_configured"})
+		return
+	}
+
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	customerID, _ := s.billing.GetOrganizationCustomerID(r.Context(), org.ID)
+	if customerID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "organization_has_no_customer"})
+		return
+	}
+
+	session, err := s.billing.CreatePortalSession(r.Context(), billing.PortalSessionInput{
+		CustomerID: customerID,
+		ReturnURL:  s.defaultAppURL(),
+	})
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed_to_create_portal_session"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"url": session.URL})
+}
+
+func (s *Server) billingWebhook(w http.ResponseWriter, r *http.Request) {
+	if s.billing == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "billing_not_configured"})
+		return
+	}
+
+	body, err := io.ReadAll(io.LimitReader(r.Body, 2*1024*1024))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_webhook_payload"})
+		return
+	}
+
+	if err := s.billing.VerifyWebhookSignature(r.Header.Get("Stripe-Signature"), body); err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_webhook_signature"})
+		return
+	}
+
+	if err := s.billing.HandleWebhookEvent(r.Context(), body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed_to_process_webhook"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "processed"})
+}
+
+func authUserFromContext(ctx context.Context) auth.User {
+	user, ok := ctx.Value(authUserContextKey).(auth.User)
+	if !ok {
+		return auth.User{}
+	}
+	return user
+}
+
+func authOrgFromContext(ctx context.Context) auth.Organization {
+	org, ok := ctx.Value(authOrgContextKey).(auth.Organization)
+	if !ok {
+		return auth.Organization{}
+	}
+	return org
+}
+
+func (s *Server) defaultPricingURL() string {
+	return s.appBaseURL + "/pricing"
+}
+
+func (s *Server) defaultSuccessURL() string {
+	return s.appBaseURL + "/app?billing=success"
+}
+
+func (s *Server) defaultAppURL() string {
+	return s.appBaseURL + "/app"
+}
+
+func defaultString(value string, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
+}

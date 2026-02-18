@@ -1,0 +1,26 @@
+{
+  "name": "novame-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "sh -c 'next start -p ${PORT:-3000}'",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.37.5",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^9.16.0",
+    "eslint-config-next": "^15.1.0",
+    "typescript": "^5.7.2"
+  }
+}

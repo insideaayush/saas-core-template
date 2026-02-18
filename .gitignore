@@ -1,0 +1,21 @@
+.DS_Store
+.env
+.env.local
+node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# Frontend
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+*.tsbuildinfo
+
+# Backend
+backend/bin/
+backend/api
+
+# Local infra
+pgdata/

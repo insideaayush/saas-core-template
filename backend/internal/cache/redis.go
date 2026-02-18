@@ -1,0 +1,27 @@
+package cache
+
+import (
+	"context"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+
+func Connect(ctx context.Context, redisURL string) (*redis.Client, error) {
+	options, err := redis.ParseURL(redisURL)
+	if err != nil {
+		return nil, err
+	}
+
+	client := redis.NewClient(options)
+
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(pingCtx).Err(); err != nil {
+		_ = client.Close()
+		return nil, err
+	}
+
+	return client, nil
+}
