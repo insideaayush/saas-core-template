@@ -103,7 +103,7 @@ Run locally:
 make ci
 ```
 
-GitHub Actions workflow runs on pull requests and pushes to `main`, `develop`, `dev`, and `feature/*`:
+GitHub Actions workflow runs on pull requests and pushes to `main`, `develop`, and `dev`:
 - Backend: `go test`, `go vet`, build
 - Frontend: install, lint, typecheck, build
 
