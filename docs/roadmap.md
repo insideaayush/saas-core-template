@@ -3,6 +3,7 @@
 ## Phase 0: Shell (current)
 - Deployable monorepo with Next.js frontend and Go backend.
 - Postgres on Render and Upstash Redis integration.
+- Frontend deployed on Vercel; backend and Postgres on Render.
 - Local development parity using Docker Compose for Postgres and Redis.
 - CI checks on `main`.
 

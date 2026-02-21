@@ -36,7 +36,7 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
   - `npm run build` for route/config changes
 - Configuration:
   - Validate env example files are still consistent and complete.
-  - Validate deployment config changes (for example `render.yaml`) reflect new variables.
+  - Validate deployment config changes reflect new variables (for example `render.yaml` for Render backend, and Vercel project env vars for frontend).
 
 ## 5) Documentation and traceability
 
