@@ -9,14 +9,14 @@ Production-shaped foundation for launching a startup SaaS baseline quickly.
 - Cache: Redis (Upstash in cloud, local Redis in development)
 - Auth: Clerk (managed auth, organization context)
 - Billing: Stripe (checkout + portal + webhook sync)
-- Deploy: Render
+- Deploy: Render (backend + Postgres) + Vercel (frontend)
 - CI: GitHub Actions
 
 ## Repository layout
 - `frontend/` Next.js shell and app routes
 - `backend/` Go API shell, auth/billing endpoints, and migrations
 - `docker-compose.yml` local Postgres + Redis
-- `render.yaml` Render blueprint for backend, frontend, and Postgres
+- `render.yaml` Render blueprint for backend and Postgres
 - `.github/workflows/ci.yml` CI for frontend and backend
 - `docs/roadmap.md` product phases after shell
 
@@ -129,22 +129,29 @@ Recommended flow:
 
 See `docs/operations/git-branching-and-versioning.md` for full guidance.
 
-## Render deployment
-`render.yaml` defines:
-- `saas-core-template-backend` (Go web service)
-- `saas-core-template-frontend` (Node web service for Next.js)
-- `saas-core-template-postgres` (managed Postgres)
+## Production deployment
 
-### Setup steps on Render
+This template deploys:
+- Backend + Postgres on Render (see `render.yaml`)
+- Frontend on Vercel (deploy `frontend/`)
+
+### Backend + Postgres (Render)
 1. Connect this GitHub repository in Render.
-2. Create services from `render.yaml` blueprint.
+2. Create services from the `render.yaml` blueprint.
 3. Set backend secrets: `REDIS_URL`, `CLERK_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Stripe price IDs.
-4. Set frontend `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.
-5. Confirm frontend `NEXT_PUBLIC_API_URL` points to backend service URL.
-6. Ensure auto-deploy is enabled for `main`.
+4. Set `APP_BASE_URL` to your Vercel frontend URL (used for Stripe return URLs).
+5. Ensure auto-deploy is enabled for `main`.
+
+### Frontend (Vercel)
+1. Import the repo in Vercel.
+2. Set project root directory to `frontend/`.
+3. Set environment variables:
+   - `NEXT_PUBLIC_API_URL` = Render backend URL
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = Clerk publishable key
+4. Deploy.
 
 Deployment flow:
-- Push to `main` -> GitHub Actions CI passes -> Render auto-deploys updated services.
+- Push to `main` -> GitHub Actions CI passes -> Render auto-deploys backend; Vercel deploys frontend.
 
 ## Notes
 - Local Redis exists for parity; production uses Upstash Redis.

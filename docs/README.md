@@ -9,6 +9,7 @@ This directory contains implementation playbooks for contributors and AI agents.
 3. Review the architecture playbooks in `docs/architecture/`.
 4. Review the operations playbooks in `docs/operations/`.
 5. Confirm your change keeps provider boundaries portable and tenant isolation strict.
+6. Skim `../README.md` for local + production deployment setup (Render backend + Postgres, Vercel frontend).
 
 ## Architecture playbooks
 
