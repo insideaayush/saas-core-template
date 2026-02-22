@@ -250,10 +250,10 @@ func (s *Service) ensureDefaultOrganizationForUser(ctx context.Context, user Use
 	slug := fmt.Sprintf("workspace-%s", shortKey(user.ID))
 	var orgID string
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO organizations (name, slug)
-		VALUES ($1, $2)
+		INSERT INTO organizations (name, slug, kind, personal_owner_user_id)
+		VALUES ($1, $2, 'personal', $3::uuid)
 		RETURNING id::text
-	`, name, slug).Scan(&orgID); err != nil {
+	`, name, slug, user.ID).Scan(&orgID); err != nil {
 		return fmt.Errorf("create default organization: %w", err)
 	}
 

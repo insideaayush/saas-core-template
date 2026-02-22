@@ -58,7 +58,7 @@ This doc is a “start here” guide for understanding the template quickly.
 - Backend verifies token with Clerk, then ensures:
   - internal `users` row exists
   - identity mapping exists in `auth_identities`
-  - user has at least one organization membership
+  - user has a personal workspace (single-member organization) and at least one membership
 
 ### Tenancy / org context
 

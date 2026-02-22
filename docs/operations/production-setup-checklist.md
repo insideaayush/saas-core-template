@@ -89,6 +89,7 @@ Apply migrations in order against Render Postgres before using auth/billing/file
 
 - `backend/migrations/0001_identity_tenancy_billing.up.sql`
 - `backend/migrations/0002_jobs_audit_files.up.sql`
+- `backend/migrations/0003_personal_workspaces.up.sql`
 
 ## 2) Deploy frontend (Vercel)
 

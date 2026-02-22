@@ -8,6 +8,15 @@ This template uses an organization/workspace model as the default multi-tenant s
 - Product data belongs to an organization unless it is explicitly global platform metadata.
 - Effective authorization is determined by membership and role within the active organization.
 
+### Personal workspace (Option A)
+
+Every new user gets a **personal workspace** implemented as a normal `organizations` row with:
+
+- `kind = 'personal'`
+- `personal_owner_user_id = <user_id>`
+
+This personal workspace is enforced to be **single-member** (owner only). Users can still create and join other (team) organizations.
+
 ## Recommended tables
 
 - `organizations`
