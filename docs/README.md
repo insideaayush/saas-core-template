@@ -2,6 +2,10 @@
 
 This directory contains implementation playbooks for contributors and AI agents.
 
+## Start here
+
+- `overview.md` gives a reading order and repo map.
+
 ## First 30 minutes
 
 1. Run `./scripts/init-template.sh "<new-project-name>"` if this is a new clone from template.
@@ -26,6 +30,8 @@ This directory contains implementation playbooks for contributors and AI agents.
 
 - [SOC 2 Foundations](operations/compliance-soc2-foundations.md)
   - Baseline controls and evidence expectations.
+- [Production Setup Checklist](operations/production-setup-checklist.md)
+  - End-to-end deployment wiring (Render + Vercel + providers).
 - [Observability (OpenTelemetry)](operations/observability.md)
   - Local tracing collector and production export configuration.
 - [Product Analytics (PostHog)](operations/product-analytics.md)
