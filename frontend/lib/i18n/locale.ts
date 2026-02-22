@@ -3,8 +3,9 @@ import { isLocale, type Locale } from "./messages";
 
 const COOKIE_NAME = "locale";
 
-export function getServerLocale(): Locale {
-  const value = cookies().get(COOKIE_NAME)?.value;
+export async function getServerLocale(): Promise<Locale> {
+  const store = await cookies();
+  const value = store.get(COOKIE_NAME)?.value;
   if (isLocale(value)) {
     return value;
   }
@@ -12,4 +13,3 @@ export function getServerLocale(): Locale {
 }
 
 export const localeCookieName = COOKIE_NAME;
-

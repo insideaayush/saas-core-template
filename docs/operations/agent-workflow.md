@@ -40,6 +40,7 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
   - Confirm managed integrations are optional and local E2E still works with console/noop defaults (OpenTelemetry, analytics, error reporting, support widget).
   - Confirm no secrets were committed while adding integration variables.
   - Confirm i18n defaults render correctly (language switcher changes locale without breaking SSR pages).
+  - For UI work, prefer shadcn/ui primitives in `frontend/components/ui/` and avoid one-off styling.
 
 ## 5) Documentation and traceability
 

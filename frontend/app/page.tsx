@@ -3,57 +3,99 @@ import { fetchMeta } from "@/lib/api";
 import { getServerLocale } from "@/lib/i18n/locale";
 import { getMessages } from "@/lib/i18n/messages";
 import { t } from "@/lib/i18n/translate";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function HomePage() {
   const meta = await fetchMeta();
   const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-  const messages = getMessages(getServerLocale());
+  const messages = getMessages(await getServerLocale());
 
   return (
-    <main>
-      <h1>{t(messages, "home.title")}</h1>
-      <p>{t(messages, "home.subtitle")}</p>
-
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>{t(messages, "home.whatYouGetTitle")}</h2>
-        <ul>
-          {messages.home.whatYouGetBullets.map((bullet) => (
-            <li key={bullet}>{bullet}</li>
-          ))}
-        </ul>
-        <p>
-          <Link href="/pricing">{t(messages, "home.whatYouGetCtaPrefix")} {t(messages, "home.whatYouGetCtaPricing")}</Link>{" "}
-          {t(messages, "home.whatYouGetCtaOr")} <Link href="/app">{t(messages, "home.whatYouGetCtaDashboard")}</Link>.
-        </p>
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <h1 className="text-4xl font-semibold tracking-tight">{t(messages, "home.title")}</h1>
+        <p className="max-w-2xl text-muted-foreground">{t(messages, "home.subtitle")}</p>
+        <div className="flex flex-wrap gap-3 pt-2">
+          <Button asChild>
+            <Link href="/pricing">View pricing</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/app">Open app</Link>
+          </Button>
+        </div>
       </section>
 
-      <section className="card" style={{ marginTop: "1.25rem" }}>
-        <h2>{t(messages, "home.statusTitle")}</h2>
-        {meta ? (
-          <ul>
-            <li>app: {meta.app}</li>
-            <li>env: {meta.env}</li>
-            <li>version: {meta.version}</li>
-            <li>time: {new Date(meta.time).toLocaleString()}</li>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t(messages, "home.whatYouGetTitle")}</CardTitle>
+          <CardDescription>Template baseline features included out of the box.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
+            {messages.home.whatYouGetBullets.map((bullet) => (
+              <li key={bullet}>{bullet}</li>
+            ))}
           </ul>
-        ) : (
-          <p>{t(messages, "home.backendUnreachable")}</p>
-        )}
-      </section>
+          <div className="mt-4 text-sm">
+            <Link className="underline underline-offset-4" href="/pricing">
+              {t(messages, "home.whatYouGetCtaPrefix")} {t(messages, "home.whatYouGetCtaPricing")}
+            </Link>{" "}
+            <span className="text-muted-foreground">{t(messages, "home.whatYouGetCtaOr")}</span>{" "}
+            <Link className="underline underline-offset-4" href="/app">
+              {t(messages, "home.whatYouGetCtaDashboard")}
+            </Link>
+            .
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>{t(messages, "home.getStartedTitle")}</h2>
-        {hasClerk ? (
-          <p>
-            {t(messages, "home.getStartedWithClerk")}{" "}
-            <Link href="/sign-up">sign up</Link> / <Link href="/sign-in">sign in</Link>
-          </p>
-        ) : (
-          <p>
-            {t(messages, "home.getStartedWithoutClerk")} <Link href="/app">/app</Link>
-          </p>
-        )}
-      </section>
-    </main>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t(messages, "home.statusTitle")}</CardTitle>
+          <CardDescription>Live backend connectivity check.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {meta ? (
+            <ul className="grid gap-2 text-sm text-muted-foreground">
+              <li>app: {meta.app}</li>
+              <li>env: {meta.env}</li>
+              <li>version: {meta.version}</li>
+              <li>time: {new Date(meta.time).toLocaleString()}</li>
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t(messages, "home.backendUnreachable")}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t(messages, "home.getStartedTitle")}</CardTitle>
+          <CardDescription>Auth and tenancy are optional until configured.</CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          {hasClerk ? (
+            <p>
+              {t(messages, "home.getStartedWithClerk")}{" "}
+              <Link className="underline underline-offset-4" href="/sign-up">
+                sign up
+              </Link>{" "}
+              /{" "}
+              <Link className="underline underline-offset-4" href="/sign-in">
+                sign in
+              </Link>
+            </p>
+          ) : (
+            <p>
+              {t(messages, "home.getStartedWithoutClerk")}{" "}
+              <Link className="underline underline-offset-4" href="/app">
+                /app
+              </Link>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

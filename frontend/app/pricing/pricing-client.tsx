@@ -4,6 +4,8 @@ import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { createCheckoutSession } from "@/lib/api";
 import { createAnalyticsClient } from "@/lib/integrations/analytics";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const PLANS = [
   {
@@ -55,28 +57,37 @@ export function PricingClient() {
   };
 
   return (
-    <section style={{ marginTop: "1rem", display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+    <section className="grid gap-4 md:grid-cols-2">
       {PLANS.map((plan) => (
-        <article key={plan.code} className="card">
-          <h2>{plan.name}</h2>
-          <p style={{ fontSize: "1.5rem", margin: "0.5rem 0" }}>{plan.price}/mo</p>
-          <p>{plan.description}</p>
-          <ul>
+        <Card key={plan.code}>
+          <CardHeader>
+            <CardTitle>{plan.name}</CardTitle>
+            <div className="text-2xl font-semibold">
+              {plan.price}
+              <span className="text-sm font-normal text-muted-foreground">/mo</span>
+            </div>
+            <p className="text-sm text-muted-foreground">{plan.description}</p>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             {plan.features.map((feature) => (
               <li key={feature}>{feature}</li>
             ))}
-          </ul>
-          <button type="button" disabled={!hasClerk || loadingPlan === plan.code} onClick={() => void startCheckout(plan.code)}>
-            {loadingPlan === plan.code ? "Redirecting..." : `Choose ${plan.name}`}
-          </button>
-        </article>
+            </ul>
+            <div className="pt-4">
+              <Button type="button" disabled={!hasClerk || loadingPlan === plan.code} onClick={() => void startCheckout(plan.code)}>
+                {loadingPlan === plan.code ? "Redirecting..." : `Choose ${plan.name}`}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ))}
       {!hasClerk && (
-        <div className="card" style={{ gridColumn: "1 / -1" }}>
-          <p>
+        <Card className="md:col-span-2">
+          <CardContent className="pt-6 text-sm text-muted-foreground">
             Pricing checkout requires Clerk session auth. Configure <code>NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> and backend keys to enable checkout.
-          </p>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </section>
   );

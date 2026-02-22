@@ -4,6 +4,7 @@ Production-shaped foundation for launching a startup SaaS baseline quickly.
 
 ## Stack
 - Frontend: Next.js (TypeScript)
+- UI: shadcn/ui (Tailwind + Radix)
 - Backend: Go (`net/http`)
 - Database: Postgres
 - Cache: Redis (Upstash in cloud, local Redis in development)

@@ -4,6 +4,8 @@ import { UserButton, useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
 import { createBillingPortalSession, fetchViewer, type ViewerResponse } from "@/lib/api";
 import { createAnalyticsClient } from "@/lib/integrations/analytics";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type LoadState = "idle" | "loading" | "error";
 
@@ -72,45 +74,59 @@ export function DashboardClient() {
   };
 
   return (
-    <main>
-      <h1>App Dashboard</h1>
-      <p>Protected workspace for authenticated organizations.</p>
+    <div className="space-y-6">
+      <section className="space-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight">App Dashboard</h1>
+        <p className="text-muted-foreground">Protected workspace for authenticated organizations.</p>
+      </section>
 
       {hasClerk && (
-        <div className="card" style={{ marginTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h2 style={{ marginTop: 0 }}>Session</h2>
-            <p style={{ marginBottom: 0 }}>{userId ? "Signed in with Clerk" : "Not signed in"}</p>
-          </div>
-          <UserButton afterSignOutUrl="/" />
-        </div>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div className="space-y-1">
+              <CardTitle>Session</CardTitle>
+              <p className="text-sm text-muted-foreground">{userId ? "Signed in with Clerk" : "Not signed in"}</p>
+            </div>
+            <UserButton afterSignOutUrl="/" />
+          </CardHeader>
+        </Card>
       )}
 
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>Workspace</h2>
-        {!hasClerk && (
-          <p>
-            Clerk is not configured yet. Set <code>NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> to enable auth and organization context.
-          </p>
-        )}
-        {hasClerk && state === "loading" && <p>Loading your workspace context...</p>}
-        {hasClerk && state === "error" && <p>Could not load workspace context from API. Ensure backend auth and migrations are configured.</p>}
-        {hasClerk && viewer && (
-          <ul>
-            <li>User: {viewer.user.primaryEmail || viewer.user.id}</li>
-            <li>Organization: {viewer.organization.name || viewer.organization.id}</li>
-            <li>Role: {viewer.organization.role}</li>
-          </ul>
-        )}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Workspace</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          {!hasClerk && (
+            <p>
+              Clerk is not configured yet. Set <code>NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> to enable auth and organization context.
+            </p>
+          )}
+          {hasClerk && state === "loading" && <p>Loading your workspace context...</p>}
+          {hasClerk && state === "error" && <p>Could not load workspace context from API. Ensure backend auth and migrations are configured.</p>}
+          {hasClerk && viewer && (
+            <ul className="list-disc space-y-1 pl-5">
+              <li>User: {viewer.user.primaryEmail || viewer.user.id}</li>
+              <li>Organization: {viewer.organization.name || viewer.organization.id}</li>
+              <li>Role: {viewer.organization.role}</li>
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>Billing</h2>
-        <p>Manage your plan and invoices in the Stripe customer portal.</p>
-        <button type="button" onClick={openBillingPortal} disabled={!hasClerk || portalLoading}>
-          {portalLoading ? "Opening..." : "Open billing portal"}
-        </button>
-      </section>
-    </main>
+      <Card>
+        <CardHeader>
+          <CardTitle>Billing</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>Manage your plan and invoices in the Stripe customer portal.</p>
+          <div>
+            <Button type="button" onClick={openBillingPortal} disabled={!hasClerk || portalLoading}>
+              {portalLoading ? "Opening..." : "Open billing portal"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

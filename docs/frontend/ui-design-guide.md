@@ -1,10 +1,10 @@
-# UI Design Guide (Tailwind + Radix)
+# UI Design Guide (shadcn/ui + Tailwind + Radix)
 
 This template keeps UI styling intentionally simple, but the recommended direction for “production SaaS UI” is:
 
+- shadcn/ui component patterns (Tailwind + Radix + variants).
 - Tailwind CSS for styling and design tokens.
 - Radix UI primitives for accessibility-correct components.
-- A small component system using variants (for example `Button` with `intent`/`size`) to avoid one-off styles.
 
 ## Principles
 
@@ -15,13 +15,22 @@ This template keeps UI styling intentionally simple, but the recommended directi
 
 ## Component conventions
 
-- Put primitives in `frontend/components/ui/*`.
-- Use a variant helper (e.g. `class-variance-authority`) to keep Tailwind class logic centralized.
+- Put primitives in `frontend/components/ui/*` (shadcn-style).
+- Use variants via `class-variance-authority` and utility composition via `frontend/lib/utils.ts`.
 - Always support:
   - `disabled` state
   - `loading` state (with `aria-busy`)
   - focus-visible ring
   - consistent spacing and typography
+
+## Adding components (recommended workflow)
+
+This repo is set up to support shadcn’s generator config (`frontend/components.json`). To add new primitives:
+
+- From `frontend/`, run `npx shadcn@latest add <component>`
+- Commit generated files under `frontend/components/ui/`
+
+Prefer adding a small set of primitives and using them everywhere instead of one-off custom markup.
 
 ## Recommended primitives
 
@@ -46,4 +55,3 @@ This template keeps UI styling intentionally simple, but the recommended directi
 
 - Do not embed strings in deeply nested components; pass copy in from the page/screen layer.
 - Avoid concatenating translated strings; prefer full sentences in message catalogs.
-
