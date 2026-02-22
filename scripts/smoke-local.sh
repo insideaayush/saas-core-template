@@ -108,16 +108,6 @@ API_PID=""
 WORKER_PID=""
 UI_PID=""
 
-SCRIPT_PGID="$(ps -o pgid= $$ 2>/dev/null | tr -d '[:space:]' || true)"
-
-start_bg() {
-  if command -v setsid >/dev/null 2>&1; then
-    setsid "$@" &
-  else
-    "$@" &
-  fi
-}
-
 kill_process_group() {
   local pid="$1"
   if [[ -z "${pid}" ]]; then
@@ -127,15 +117,7 @@ kill_process_group() {
     return 0
   fi
 
-  local pgid
-  pgid="$(ps -o pgid= "${pid}" 2>/dev/null | tr -d '[:space:]' || true)"
-  if [[ -n "${pgid}" && -n "${SCRIPT_PGID}" && "${pgid}" == "${SCRIPT_PGID}" ]]; then
-    kill -TERM "${pid}" 2>/dev/null || true
-  elif [[ -n "${pgid}" ]]; then
-    kill -TERM -- "-${pgid}" 2>/dev/null || true
-  else
-    kill -TERM "${pid}" 2>/dev/null || true
-  fi
+  kill -TERM "${pid}" 2>/dev/null || true
 }
 
 wait_gone() {
@@ -263,7 +245,16 @@ if [[ "${SKIP_MIGRATIONS}" == "0" ]]; then
 fi
 
 echo "==> starting api"
-start_bg bash -c "cd backend && PORT='${API_PORT}' exec go run ./cmd/api"
+SMOKE_BIN_DIR="${SMOKE_BIN_DIR:-/tmp/saas-core-template-smoke-bin}"
+mkdir -p "${SMOKE_BIN_DIR}"
+
+echo "==> building api + worker binaries"
+(cd backend && go build -o "${SMOKE_BIN_DIR}/api" ./cmd/api)
+if [[ "${SKIP_WORKER}" == "0" ]]; then
+  (cd backend && go build -o "${SMOKE_BIN_DIR}/worker" ./cmd/worker)
+fi
+
+PORT="${API_PORT}" "${SMOKE_BIN_DIR}/api" &
 API_PID="$!"
 
 wait_http_ok "api /healthz" "${API_BASE}/healthz" 60
@@ -272,7 +263,7 @@ wait_http_ok "api /api/v1/meta" "${API_BASE}/api/v1/meta" 60
 
 if [[ "${SKIP_WORKER}" == "0" ]]; then
   echo "==> starting worker"
-  start_bg bash -c "cd backend && exec go run ./cmd/worker"
+  "${SMOKE_BIN_DIR}/worker" &
   WORKER_PID="$!"
 
   echo "==> testing jobs (enqueue -> worker processes -> done)"
