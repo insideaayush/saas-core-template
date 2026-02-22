@@ -93,6 +93,7 @@ Initial migration files:
 - `backend/migrations/0001_identity_tenancy_billing.up.sql`
 - `backend/migrations/0002_jobs_audit_files.up.sql`
 - `backend/migrations/0003_personal_workspaces.up.sql`
+- `backend/migrations/0004_team_owner_enforcement.up.sql`
 
 ## Local development
 Run infra first:

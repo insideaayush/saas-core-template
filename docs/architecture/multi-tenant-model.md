@@ -17,6 +17,13 @@ Every new user gets a **personal workspace** implemented as a normal `organizati
 
 This personal workspace is enforced to be **single-member** (owner only). Users can still create and join other (team) organizations.
 
+### Team organizations
+
+Team organizations (`kind = 'team'`) support multiple members and roles.
+
+- The `organization_members.role` column is constrained to: `owner`, `admin`, `member`.
+- Team organizations are enforced to always have **at least one** `owner` (the last owner cannot be removed or demoted).
+
 ## Recommended tables
 
 - `organizations`
