@@ -152,11 +152,13 @@ if [[ "${NO_INFRA}" == "0" ]]; then
   echo "==> starting infra (docker compose)"
   docker compose up -d postgres redis otel-collector
 
-  wait_for "postgres" "docker compose exec -T postgres pg_isready -U postgres -d saas_core_template" 90
+  wait_for "postgres" "docker compose exec -T postgres pg_isready -U postgres -d postgres" 90
+  wait_for "postgres sql" "docker compose exec -T postgres psql -qtA -U postgres -d postgres -c 'SELECT 1' | tr -d '[:space:]' | grep -q '^1$'" 90
   wait_for "redis" "docker compose exec -T redis redis-cli ping | grep -q PONG" 90
 fi
 
 echo "==> preparing smoke database (${SMOKE_DB_NAME})"
+wait_for "postgres ready for ddl" "docker compose exec -T postgres psql -qtA -U postgres -d postgres -c 'SELECT 1' | tr -d '[:space:]' | grep -q '^1$'" 60
 docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres >/dev/null <<SQL
 SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
