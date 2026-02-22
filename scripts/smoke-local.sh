@@ -26,7 +26,7 @@ Options:
 EOF
 }
 
-for arg in "${@:-}"; do
+for arg in "$@"; do
   case "$arg" in
     --no-infra) NO_INFRA=1 ;;
     --down) DOWN_AFTER=1 ;;
@@ -129,6 +129,19 @@ require_bin() {
 require_bin curl
 require_bin docker
 
+if [[ "${SKIP_UI}" == "0" ]]; then
+  if command -v node >/dev/null 2>&1; then
+    NODE_VERSION="$(node -v | tr -d 'v' || true)"
+    if [[ "${NODE_VERSION}" == 19.* ]]; then
+      NODE_MINOR="$(echo "${NODE_VERSION}" | cut -d. -f2)"
+      if [[ "${NODE_MINOR}" -lt 8 ]]; then
+        echo "Node.js ${NODE_VERSION} is too old for Next.js; use Node 20+ (or run with --skip-ui)." >&2
+        exit 1
+      fi
+    fi
+  fi
+fi
+
 if [[ "${NO_INFRA}" == "0" ]]; then
   echo "==> starting infra (docker compose)"
   docker compose up -d postgres redis otel-collector
@@ -195,4 +208,3 @@ echo "API: ${API_BASE}"
 if [[ "${SKIP_UI}" == "0" ]]; then
   echo "UI:  ${UI_BASE}"
 fi
-
