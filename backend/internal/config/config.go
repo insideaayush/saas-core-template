@@ -21,6 +21,10 @@ type Config struct {
 	SentryDSN              string
 	SentryEnvironment      string
 
+	AnalyticsProvider string
+	PostHogProjectKey string
+	PostHogHost       string
+
 	ClerkSecretKey         string
 	ClerkAPIURL            string
 	StripeSecretKey        string
@@ -47,6 +51,10 @@ func Load() (Config, error) {
 		ErrorReportingProvider: getEnv("ERROR_REPORTING_PROVIDER", "console"),
 		SentryDSN:              os.Getenv("SENTRY_DSN"),
 		SentryEnvironment:      getEnv("SENTRY_ENVIRONMENT", ""),
+
+		AnalyticsProvider: getEnv("ANALYTICS_PROVIDER", "console"),
+		PostHogProjectKey: os.Getenv("POSTHOG_PROJECT_KEY"),
+		PostHogHost:       getEnv("POSTHOG_HOST", "https://app.posthog.com"),
 
 		ClerkSecretKey:         os.Getenv("CLERK_SECRET_KEY"),
 		ClerkAPIURL:            getEnv("CLERK_API_URL", ""),

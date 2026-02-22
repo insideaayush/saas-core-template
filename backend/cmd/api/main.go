@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"saas-core-template/backend/internal/analytics"
 	"saas-core-template/backend/internal/api"
 	"saas-core-template/backend/internal/auth"
 	"saas-core-template/backend/internal/billing"
@@ -32,6 +33,22 @@ func main() {
 	}
 
 	ctx := context.Background()
+
+	analyticsProvider, err := analytics.ProviderFromEnv(cfg.AnalyticsProvider)
+	if err != nil {
+		slog.Error("failed to parse analytics provider", "error", err)
+		os.Exit(1)
+	}
+
+	var analyticsClient analytics.Client
+	switch analyticsProvider {
+	case "none":
+		analyticsClient = analytics.NewNoop()
+	case "posthog":
+		analyticsClient = analytics.NewPostHog(cfg.PostHogProjectKey, cfg.PostHogHost)
+	default:
+		analyticsClient = analytics.NewConsole()
+	}
 
 	shutdownTelemetry, err := telemetry.Init(ctx, telemetry.Config{
 		ServiceName:    cfg.ServiceName,
@@ -106,6 +123,7 @@ func main() {
 		api.WithAuthService(authService),
 		api.WithBillingService(billingService),
 		api.WithAppBaseURL(cfg.AppBaseURL),
+		api.WithAnalytics(analyticsClient),
 	)
 
 	baseHandler := apiServer.Handler()

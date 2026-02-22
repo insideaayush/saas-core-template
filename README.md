@@ -50,6 +50,9 @@ Core variables:
   - `ERROR_REPORTING_PROVIDER` (`console`, `sentry`, or `none`)
   - `SENTRY_DSN` (backend error reporting)
   - `SENTRY_ENVIRONMENT` (defaults to empty)
+  - `ANALYTICS_PROVIDER` (`console`, `posthog`, or `none`)
+  - `POSTHOG_PROJECT_KEY`
+  - `POSTHOG_HOST`
   - `CLERK_SECRET_KEY`
   - `CLERK_API_URL` (default `https://api.clerk.com`)
   - `STRIPE_SECRET_KEY`
@@ -68,6 +71,7 @@ Core variables:
   - `NEXT_PUBLIC_ERROR_REPORTING_PROVIDER` (`console`, `sentry`, or `none`)
   - `NEXT_PUBLIC_SENTRY_DSN`
   - `NEXT_PUBLIC_SENTRY_ENVIRONMENT`
+  - Locale is stored in a `locale` cookie (supported: `en`, `es`)
 
 ## Database migrations
 

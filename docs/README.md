@@ -66,3 +66,8 @@ Before opening a PR:
 - Confirm provider SDK usage is isolated behind interfaces/adapters.
 - Confirm logs do not include secrets or sensitive payloads.
 - Add/update docs for any auth, tenancy, billing, or compliance-sensitive change.
+
+## Frontend guides
+
+- [UI Design Guide](frontend/ui-design-guide.md)
+  - Tailwind + Radix component conventions and UI principles.

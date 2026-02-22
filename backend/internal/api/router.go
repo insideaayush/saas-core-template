@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"saas-core-template/backend/internal/analytics"
 	"saas-core-template/backend/internal/auth"
 	"saas-core-template/backend/internal/billing"
 )
@@ -24,12 +25,14 @@ type Server struct {
 	redis      *redis.Client
 	auth       *auth.Service
 	billing    *billing.Service
+	analytics  analytics.Client
 }
 
 type serverOptions struct {
 	authService    *auth.Service
 	billingService *billing.Service
 	appBaseURL     string
+	analytics      analytics.Client
 }
 
 func NewServer(appName string, env string, version string, db *pgxpool.Pool, redisClient *redis.Client, opts ...func(*serverOptions)) *Server {
@@ -47,7 +50,15 @@ func NewServer(appName string, env string, version string, db *pgxpool.Pool, red
 		redis:      redisClient,
 		auth:       options.authService,
 		billing:    options.billingService,
+		analytics:  defaultAnalytics(options.analytics),
 	}
+}
+
+func defaultAnalytics(client analytics.Client) analytics.Client {
+	if client == nil {
+		return analytics.NewNoop()
+	}
+	return client
 }
 
 func WithAuthService(authService *auth.Service) func(*serverOptions) {
@@ -65,6 +76,12 @@ func WithBillingService(billingService *billing.Service) func(*serverOptions) {
 func WithAppBaseURL(appBaseURL string) func(*serverOptions) {
 	return func(opts *serverOptions) {
 		opts.appBaseURL = strings.TrimSpace(appBaseURL)
+	}
+}
+
+func WithAnalytics(client analytics.Client) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.analytics = client
 	}
 }
 
@@ -158,6 +175,12 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		s.analytics.Track(r.Context(), analytics.Event{
+			Name:       "auth_authenticated",
+			DistinctID: user.ID,
+			Properties: map[string]any{"provider": "clerk"},
+		})
+
 		ctx := context.WithValue(r.Context(), authUserContextKey, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
@@ -209,6 +232,7 @@ func (s *Server) billingCheckoutSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	user := authUserFromContext(r.Context())
 	org := authOrgFromContext(r.Context())
 	if org.ID == "" {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
@@ -242,6 +266,15 @@ func (s *Server) billingCheckoutSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	s.analytics.Track(r.Context(), analytics.Event{
+		Name:       "billing_checkout_session_created",
+		DistinctID: user.ID,
+		Properties: map[string]any{
+			"organization_id": org.ID,
+			"plan_code":       req.PlanCode,
+		},
+	})
+
 	writeJSON(w, http.StatusOK, map[string]string{"url": session.URL})
 }
 
@@ -251,6 +284,7 @@ func (s *Server) billingPortalSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := authUserFromContext(r.Context())
 	org := authOrgFromContext(r.Context())
 	if org.ID == "" {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
@@ -271,6 +305,14 @@ func (s *Server) billingPortalSession(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed_to_create_portal_session"})
 		return
 	}
+
+	s.analytics.Track(r.Context(), analytics.Event{
+		Name:       "billing_portal_session_created",
+		DistinctID: user.ID,
+		Properties: map[string]any{
+			"organization_id": org.ID,
+		},
+	})
 
 	writeJSON(w, http.StatusOK, map[string]string{"url": session.URL})
 }

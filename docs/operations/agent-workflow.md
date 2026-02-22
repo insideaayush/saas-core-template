@@ -39,6 +39,7 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
   - Validate deployment config changes reflect new variables (for example `render.yaml` for Render backend, and Vercel project env vars for frontend).
   - Confirm managed integrations are optional and local E2E still works with console/noop defaults (OpenTelemetry, analytics, error reporting, support widget).
   - Confirm no secrets were committed while adding integration variables.
+  - Confirm i18n defaults render correctly (language switcher changes locale without breaking SSR pages).
 
 ## 5) Documentation and traceability
 

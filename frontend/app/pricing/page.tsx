@@ -1,16 +1,21 @@
 import Link from "next/link";
 import { PricingClient } from "./pricing-client";
+import { getServerLocale } from "@/lib/i18n/locale";
+import { getMessages } from "@/lib/i18n/messages";
+import { t } from "@/lib/i18n/translate";
 
 export default function PricingPage() {
+  const messages = getMessages(getServerLocale());
+
   return (
     <main>
-      <h1>Pricing</h1>
-      <p>Simple plans designed to get from zero to production without custom billing plumbing.</p>
+      <h1>{t(messages, "pricing.title")}</h1>
+      <p>{t(messages, "pricing.subtitle")}</p>
       <PricingClient />
       <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>Need help choosing?</h2>
+        <h2>{t(messages, "pricing.helpTitle")}</h2>
         <p>
-          Start with Pro and upgrade anytime. If you are already onboarded, head to the <Link href="/app">dashboard</Link>.
+          {t(messages, "pricing.helpBody")} <Link href="/app">dashboard</Link>.
         </p>
       </section>
     </main>

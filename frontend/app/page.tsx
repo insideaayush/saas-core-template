@@ -1,29 +1,34 @@
 import Link from "next/link";
 import { fetchMeta } from "@/lib/api";
+import { getServerLocale } from "@/lib/i18n/locale";
+import { getMessages } from "@/lib/i18n/messages";
+import { t } from "@/lib/i18n/translate";
 
 export default async function HomePage() {
   const meta = await fetchMeta();
   const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  const messages = getMessages(getServerLocale());
 
   return (
     <main>
-      <h1>SaaS Core Template</h1>
-      <p>Launch a production-shaped SaaS baseline with auth, multi-tenant workspaces, and billing foundations.</p>
+      <h1>{t(messages, "home.title")}</h1>
+      <p>{t(messages, "home.subtitle")}</p>
 
       <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>What you get</h2>
+        <h2>{t(messages, "home.whatYouGetTitle")}</h2>
         <ul>
-          <li>Landing + pricing pages with clear upgrade paths</li>
-          <li>Protected app area and organization-aware APIs</li>
-          <li>Managed auth and billing integrations that stay migration-friendly</li>
+          {messages.home.whatYouGetBullets.map((bullet) => (
+            <li key={bullet}>{bullet}</li>
+          ))}
         </ul>
         <p>
-          <Link href="/pricing">See pricing</Link> or continue to the <Link href="/app">app dashboard</Link>.
+          <Link href="/pricing">{t(messages, "home.whatYouGetCtaPrefix")} {t(messages, "home.whatYouGetCtaPricing")}</Link>{" "}
+          {t(messages, "home.whatYouGetCtaOr")} <Link href="/app">{t(messages, "home.whatYouGetCtaDashboard")}</Link>.
         </p>
       </section>
 
       <section className="card" style={{ marginTop: "1.25rem" }}>
-        <h2>Platform Status</h2>
+        <h2>{t(messages, "home.statusTitle")}</h2>
         {meta ? (
           <ul>
             <li>app: {meta.app}</li>
@@ -32,19 +37,20 @@ export default async function HomePage() {
             <li>time: {new Date(meta.time).toLocaleString()}</li>
           </ul>
         ) : (
-          <p>Backend is unreachable. Start API on port 8080.</p>
+          <p>{t(messages, "home.backendUnreachable")}</p>
         )}
       </section>
 
       <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>Get started</h2>
+        <h2>{t(messages, "home.getStartedTitle")}</h2>
         {hasClerk ? (
           <p>
-            Use <Link href="/sign-up">sign up</Link> to create your account or <Link href="/sign-in">sign in</Link> if you already have one.
+            {t(messages, "home.getStartedWithClerk")}{" "}
+            <Link href="/sign-up">sign up</Link> / <Link href="/sign-in">sign in</Link>
           </p>
         ) : (
           <p>
-            Clerk is not configured yet. Add publishable and secret keys, then use <Link href="/app">/app</Link> as your protected dashboard.
+            {t(messages, "home.getStartedWithoutClerk")} <Link href="/app">/app</Link>
           </p>
         )}
       </section>
