@@ -2,7 +2,16 @@
 
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
-import { createBillingPortalSession, fetchViewer, type ViewerResponse } from "@/lib/api";
+import {
+  completeFileUpload,
+  createBillingPortalSession,
+  createFileUploadURL,
+  fetchAuditEvents,
+  fetchViewer,
+  getFileDownloadURL,
+  type AuditEventRecord,
+  type ViewerResponse
+} from "@/lib/api";
 import { createAnalyticsClient } from "@/lib/integrations/analytics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +23,10 @@ export function DashboardClient() {
   const [viewer, setViewer] = useState<ViewerResponse | null>(null);
   const [state, setState] = useState<LoadState>("idle");
   const [portalLoading, setPortalLoading] = useState(false);
+  const [auditEvents, setAuditEvents] = useState<AuditEventRecord[]>([]);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [lastUploadedFileId, setLastUploadedFileId] = useState<string | null>(null);
   const analytics = useMemo(
     () => createAnalyticsClient((process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER ?? "console") as "console" | "posthog" | "none"),
     []
@@ -55,6 +68,27 @@ export function DashboardClient() {
     };
   }, [getToken, hasClerk, isLoaded, orgId, userId]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAudit() {
+      if (!hasClerk) return;
+      if (!isLoaded || !userId) return;
+      const token = await getToken();
+      if (!token) return;
+
+      const data = await fetchAuditEvents(token, orgId);
+      if (!cancelled) {
+        setAuditEvents(data?.events ?? []);
+      }
+    }
+
+    void loadAudit();
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, hasClerk, isLoaded, orgId, userId]);
+
   const openBillingPortal = async () => {
     if (!hasClerk) {
       return;
@@ -70,6 +104,67 @@ export function DashboardClient() {
     setPortalLoading(false);
     if (session?.url) {
       window.location.href = session.url;
+    }
+  };
+
+  const startUpload = async () => {
+    if (!hasClerk || !uploadFile) return;
+    setUploading(true);
+    setLastUploadedFileId(null);
+
+    const token = await getToken();
+    if (!token) {
+      setUploading(false);
+      return;
+    }
+
+    const created = await createFileUploadURL({
+      token,
+      organizationId: orgId,
+      filename: uploadFile.name,
+      contentType: uploadFile.type || "application/octet-stream"
+    });
+    if (!created) {
+      setUploading(false);
+      return;
+    }
+
+    let ok = false;
+    if (created.uploadType === "direct") {
+      const form = new FormData();
+      form.append("file", uploadFile, uploadFile.name);
+      const response = await fetch(created.url, {
+        method: created.method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(orgId ? { "X-Organization-ID": orgId } : {})
+        },
+        body: form
+      });
+      ok = response.ok;
+    } else {
+      const response = await fetch(created.url, {
+        method: created.method,
+        headers: created.headers,
+        body: uploadFile
+      });
+      ok = response.ok;
+      if (ok) {
+        ok = await completeFileUpload({
+          token,
+          organizationId: orgId,
+          fileId: created.fileId,
+          sizeBytes: uploadFile.size
+        });
+      }
+    }
+
+    setUploading(false);
+    if (ok) {
+      setLastUploadedFileId(created.fileId);
+      analytics.track("file_uploaded", { fileId: created.fileId });
+      const updated = await fetchAuditEvents(token, orgId);
+      setAuditEvents(updated?.events ?? []);
     }
   };
 
@@ -125,6 +220,81 @@ export function DashboardClient() {
               {portalLoading ? "Opening..." : "Open billing portal"}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Files</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>Tenant-scoped uploads with disk local storage or presigned S3/R2 URLs.</p>
+          <input
+            type="file"
+            onChange={(e) => {
+              setUploadFile(e.target.files?.[0] ?? null);
+            }}
+          />
+          <div className="flex items-center gap-3">
+            <Button type="button" onClick={startUpload} disabled={!hasClerk || uploading || !uploadFile}>
+              {uploading ? "Uploading..." : "Upload"}
+            </Button>
+            {lastUploadedFileId && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  const token = await getToken();
+                  if (!token) return;
+                  const info = await getFileDownloadURL({ token, organizationId: orgId, fileId: lastUploadedFileId });
+                  if (!info) return;
+
+                  if (info.downloadType === "presigned") {
+                    window.open(info.url, "_blank", "noopener,noreferrer");
+                    return;
+                  }
+
+                  const response = await fetch(info.url, {
+                    method: "GET",
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      ...(orgId ? { "X-Organization-ID": orgId } : {})
+                    }
+                  });
+                  if (!response.ok) return;
+                  const blob = await response.blob();
+                  const href = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = href;
+                  a.download = "download";
+                  a.click();
+                  URL.revokeObjectURL(href);
+                }}
+              >
+                Download last upload
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Audit events</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          {auditEvents.length === 0 ? (
+            <p>No recent events.</p>
+          ) : (
+            <ul className="space-y-2">
+              {auditEvents.slice(0, 10).map((evt) => (
+                <li key={evt.id}>
+                  <span className="font-medium text-foreground">{evt.action}</span>{" "}
+                  <span className="text-xs">({new Date(evt.createdAt).toLocaleString()})</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>

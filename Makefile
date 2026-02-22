@@ -11,6 +11,9 @@ infra-down:
 dev-api:
 	cd backend && go run ./cmd/api
 
+dev-worker:
+	cd backend && go run ./cmd/worker
+
 dev-ui:
 	cd frontend && npm run dev
 

@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"saas-core-template/backend/internal/audit"
+	"saas-core-template/backend/internal/jobs"
 )
 
 var (
@@ -30,6 +33,8 @@ type Provider interface {
 type Service struct {
 	provider Provider
 	db       *pgxpool.Pool
+	jobs     jobs.Enqueuer
+	audit    audit.Recorder
 }
 
 type User struct {
@@ -44,10 +49,34 @@ type Organization struct {
 	Role string `json:"role"`
 }
 
-func NewService(provider Provider, db *pgxpool.Pool) *Service {
-	return &Service{
+func NewService(provider Provider, db *pgxpool.Pool, opts ...func(*Service)) *Service {
+	svc := &Service{
 		provider: provider,
 		db:       db,
+		jobs:     nil,
+		audit:    audit.NewNoop(),
+	}
+
+	for _, opt := range opts {
+		if opt != nil {
+			opt(svc)
+		}
+	}
+
+	return svc
+}
+
+func WithJobs(enqueuer jobs.Enqueuer) func(*Service) {
+	return func(s *Service) {
+		s.jobs = enqueuer
+	}
+}
+
+func WithAudit(recorder audit.Recorder) func(*Service) {
+	return func(s *Service) {
+		if recorder != nil {
+			s.audit = recorder
+		}
 	}
 }
 
@@ -71,7 +100,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (User, error) 
 		return User{}, fmt.Errorf("verify token: %w", err)
 	}
 
-	userID, err := s.ensureUserIdentity(ctx, principal)
+	userID, created, err := s.ensureUserIdentity(ctx, principal)
 	if err != nil {
 		return User{}, err
 	}
@@ -85,13 +114,30 @@ func (s *Service) Authenticate(ctx context.Context, token string) (User, error) 
 		return User{}, err
 	}
 
+	if created {
+		_ = s.audit.Record(ctx, audit.Event{
+			UserID: user.ID,
+			Action: "user_created",
+			Data:   map[string]any{"primary_email": user.PrimaryEmail, "provider": principal.Provider},
+		})
+
+		if s.jobs != nil && strings.TrimSpace(user.PrimaryEmail) != "" {
+			_, _ = s.jobs.Enqueue(ctx, "send_email", map[string]any{
+				"kind":    "welcome",
+				"to":      user.PrimaryEmail,
+				"subject": "Welcome",
+				"text":    "Welcome to the app. You're set up and ready to go.",
+			}, time.Now().UTC())
+		}
+	}
+
 	return user, nil
 }
 
-func (s *Service) ensureUserIdentity(ctx context.Context, principal VerifiedPrincipal) (string, error) {
+func (s *Service) ensureUserIdentity(ctx context.Context, principal VerifiedPrincipal) (string, bool, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
-		return "", fmt.Errorf("begin tx: %w", err)
+		return "", false, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
@@ -108,21 +154,21 @@ func (s *Service) ensureUserIdentity(ctx context.Context, principal VerifiedPrin
 			    email_verified_at = CASE WHEN $2 THEN now() ELSE email_verified_at END,
 			    updated_at = now()
 			WHERE provider = $3 AND provider_user_id = $4
-		`, emptyToNil(principal.PrimaryEmail), principal.EmailVerified, principal.Provider, principal.ProviderUserID); err != nil {
-			return "", fmt.Errorf("update identity: %w", err)
+			`, emptyToNil(principal.PrimaryEmail), principal.EmailVerified, principal.Provider, principal.ProviderUserID); err != nil {
+			return "", false, fmt.Errorf("update identity: %w", err)
 		}
 
 		if principal.PrimaryEmail != "" {
 			if _, err := tx.Exec(ctx, `UPDATE users SET primary_email = $1, updated_at = now() WHERE id = $2`, principal.PrimaryEmail, userID); err != nil {
-				return "", fmt.Errorf("update user email: %w", err)
+				return "", false, fmt.Errorf("update user email: %w", err)
 			}
 		}
 
 		if err := tx.Commit(ctx); err != nil {
-			return "", fmt.Errorf("commit existing identity: %w", err)
+			return "", false, fmt.Errorf("commit existing identity: %w", err)
 		}
 
-		return userID, nil
+		return userID, false, nil
 	}
 
 	// Create new user and identity mapping when no existing identity is found.
@@ -131,21 +177,21 @@ func (s *Service) ensureUserIdentity(ctx context.Context, principal VerifiedPrin
 		VALUES ($1)
 		RETURNING id::text
 	`, emptyToNil(principal.PrimaryEmail)).Scan(&userID); err != nil {
-		return "", fmt.Errorf("insert user: %w", err)
+		return "", false, fmt.Errorf("insert user: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO auth_identities (user_id, provider, provider_user_id, provider_email, email_verified_at)
 		VALUES ($1, $2, $3, $4, CASE WHEN $5 THEN now() ELSE NULL END)
 	`, userID, principal.Provider, principal.ProviderUserID, emptyToNil(principal.PrimaryEmail), principal.EmailVerified); err != nil {
-		return "", fmt.Errorf("insert identity: %w", err)
+		return "", false, fmt.Errorf("insert identity: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("commit new identity: %w", err)
+		return "", false, fmt.Errorf("commit new identity: %w", err)
 	}
 
-	return userID, nil
+	return userID, true, nil
 }
 
 func (s *Service) ResolveOrganization(ctx context.Context, userID string, requestedOrgID string) (Organization, error) {

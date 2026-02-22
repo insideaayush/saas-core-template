@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -24,6 +26,23 @@ type Config struct {
 	AnalyticsProvider string
 	PostHogProjectKey string
 	PostHogHost       string
+
+	EmailProvider string
+	EmailFrom     string
+	ResendAPIKey  string
+
+	JobsEnabled      bool
+	JobsWorkerID     string
+	JobsPollInterval time.Duration
+
+	FileStorageProvider string
+	FileStorageDiskPath string
+	S3Bucket            string
+	S3Region            string
+	S3Endpoint          string
+	S3AccessKeyID       string
+	S3SecretAccessKey   string
+	S3ForcePathStyle    bool
 
 	ClerkSecretKey         string
 	ClerkAPIURL            string
@@ -56,6 +75,23 @@ func Load() (Config, error) {
 		PostHogProjectKey: os.Getenv("POSTHOG_PROJECT_KEY"),
 		PostHogHost:       getEnv("POSTHOG_HOST", "https://app.posthog.com"),
 
+		EmailProvider: getEnv("EMAIL_PROVIDER", "console"),
+		EmailFrom:     getEnv("EMAIL_FROM", ""),
+		ResendAPIKey:  os.Getenv("RESEND_API_KEY"),
+
+		JobsEnabled:      getEnvBool("JOBS_ENABLED", true),
+		JobsWorkerID:     getEnv("JOBS_WORKER_ID", "local"),
+		JobsPollInterval: getEnvDuration("JOBS_POLL_INTERVAL", 1*time.Second),
+
+		FileStorageProvider: getEnv("FILE_STORAGE_PROVIDER", "disk"),
+		FileStorageDiskPath: getEnv("FILE_STORAGE_DISK_PATH", "./.data/uploads"),
+		S3Bucket:            getEnv("S3_BUCKET", ""),
+		S3Region:            getEnv("S3_REGION", "auto"),
+		S3Endpoint:          getEnv("S3_ENDPOINT", ""),
+		S3AccessKeyID:       getEnv("S3_ACCESS_KEY_ID", ""),
+		S3SecretAccessKey:   getEnv("S3_SECRET_ACCESS_KEY", ""),
+		S3ForcePathStyle:    getEnvBool("S3_FORCE_PATH_STYLE", true),
+
 		ClerkSecretKey:         os.Getenv("CLERK_SECRET_KEY"),
 		ClerkAPIURL:            getEnv("CLERK_API_URL", ""),
 		StripeSecretKey:        os.Getenv("STRIPE_SECRET_KEY"),
@@ -84,4 +120,28 @@ func getEnv(key string, fallback string) string {
 	}
 
 	return value
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
 }

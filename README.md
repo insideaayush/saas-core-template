@@ -54,6 +54,15 @@ Core variables:
   - `ANALYTICS_PROVIDER` (`console`, `posthog`, or `none`)
   - `POSTHOG_PROJECT_KEY`
   - `POSTHOG_HOST`
+  - `EMAIL_PROVIDER` (`console`, `resend`, or `none`)
+  - `EMAIL_FROM`
+  - `RESEND_API_KEY`
+  - `JOBS_ENABLED` (worker toggle)
+  - `JOBS_WORKER_ID`
+  - `JOBS_POLL_INTERVAL`
+  - `FILE_STORAGE_PROVIDER` (`disk`, `s3`, or `none`)
+  - `FILE_STORAGE_DISK_PATH`
+  - `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`
   - `CLERK_SECRET_KEY`
   - `CLERK_API_URL` (default `https://api.clerk.com`)
   - `STRIPE_SECRET_KEY`
@@ -79,9 +88,10 @@ Core variables:
 SQL migrations live in `backend/migrations/`.
 
 Apply them with your preferred migration tool before using auth/billing endpoints.
-Initial migration file:
+Initial migration files:
 
 - `backend/migrations/0001_identity_tenancy_billing.up.sql`
+- `backend/migrations/0002_jobs_audit_files.up.sql`
 
 ## Local development
 Run infra first:
@@ -96,6 +106,12 @@ Start backend in one terminal:
 
 ```bash
 make dev-api
+```
+
+Start worker in another terminal (jobs + email):
+
+```bash
+make dev-worker
 ```
 
 Start frontend in another terminal:

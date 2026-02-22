@@ -41,6 +41,7 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
   - Confirm no secrets were committed while adding integration variables.
   - Confirm i18n defaults render correctly (language switcher changes locale without breaking SSR pages).
   - For UI work, prefer shadcn/ui primitives in `frontend/components/ui/` and avoid one-off styling.
+  - If adding background jobs/email, verify local worker runs (`make dev-worker`) and production checklist is updated.
 
 ## 5) Documentation and traceability
 

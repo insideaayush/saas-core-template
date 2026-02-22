@@ -26,10 +26,15 @@ This doc is a “start here” guide for understanding the template quickly.
 
 - `backend/`
   - `cmd/api/main.go`: composition root (config, DB/Redis, providers, server start).
+  - `cmd/worker/main.go`: background worker (jobs, email sending).
   - `internal/api/`: HTTP transport (routes, middleware, JSON responses).
   - `internal/auth/`: auth provider adapter + identity mapping + org resolution.
   - `internal/billing/`: billing provider adapter + webhook handling + subscription state.
   - `internal/analytics/`: backend analytics adapter boundary (console/PostHog/noop).
+  - `internal/jobs/`: Postgres-backed job queue.
+  - `internal/email/`: email provider adapter (console/Resend/noop).
+  - `internal/files/`: file upload adapter (disk / S3 presign).
+  - `internal/audit/`: audit events recorder and reader.
   - `internal/telemetry/`: OpenTelemetry init and exporter selection.
   - `internal/errorreporting/`: backend error reporting adapter (console/Sentry/noop).
   - `migrations/`: SQL migrations (identity, tenancy, billing tables).
@@ -72,4 +77,3 @@ This doc is a “start here” guide for understanding the template quickly.
   - auth and billing endpoints return “not configured” errors
   - telemetry/analytics/error reporting default to console output or no-ops
   - support widget is disabled by default
-

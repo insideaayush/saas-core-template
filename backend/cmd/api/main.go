@@ -14,12 +14,15 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"saas-core-template/backend/internal/analytics"
 	"saas-core-template/backend/internal/api"
+	"saas-core-template/backend/internal/audit"
 	"saas-core-template/backend/internal/auth"
 	"saas-core-template/backend/internal/billing"
 	"saas-core-template/backend/internal/cache"
 	"saas-core-template/backend/internal/config"
 	"saas-core-template/backend/internal/db"
 	"saas-core-template/backend/internal/errorreporting"
+	"saas-core-template/backend/internal/files"
+	"saas-core-template/backend/internal/jobs"
 	"saas-core-template/backend/internal/telemetry"
 )
 
@@ -96,10 +99,42 @@ func main() {
 		_ = redisClient.Close()
 	}()
 
+	auditRecorder := audit.NewDBRecorder(pool)
+	jobStore := jobs.NewStore(pool)
+
+	var s3Provider *files.S3Provider
+	if cfg.FileStorageProvider == "s3" {
+		p, err := files.NewS3Provider(ctx, files.S3Config{
+			Bucket:          cfg.S3Bucket,
+			Region:          cfg.S3Region,
+			Endpoint:        cfg.S3Endpoint,
+			AccessKeyID:     cfg.S3AccessKeyID,
+			SecretAccessKey: cfg.S3SecretAccessKey,
+			ForcePathStyle:  cfg.S3ForcePathStyle,
+		})
+		if err != nil {
+			slog.Error("failed to initialize s3 provider", "error", err)
+			os.Exit(1)
+		}
+		s3Provider = p
+	}
+
+	var filesService *files.Service
+	switch cfg.FileStorageProvider {
+	case "none", "noop", "off", "disabled":
+		filesService = nil
+	default:
+		filesService = files.NewService(pool, files.Config{
+			Provider: cfg.FileStorageProvider,
+			DiskPath: cfg.FileStorageDiskPath,
+			S3:       s3Provider,
+		})
+	}
+
 	var authService *auth.Service
 	if cfg.ClerkSecretKey != "" {
 		authProvider := auth.NewClerkProvider(cfg.ClerkSecretKey, cfg.ClerkAPIURL)
-		authService = auth.NewService(authProvider, pool)
+		authService = auth.NewService(authProvider, pool, auth.WithJobs(jobStore), auth.WithAudit(auditRecorder))
 	}
 
 	var billingService *billing.Service
@@ -124,6 +159,8 @@ func main() {
 		api.WithBillingService(billingService),
 		api.WithAppBaseURL(cfg.AppBaseURL),
 		api.WithAnalytics(analyticsClient),
+		api.WithAudit(auditRecorder),
+		api.WithFiles(filesService),
 	)
 
 	baseHandler := apiServer.Handler()

@@ -32,6 +32,14 @@ This directory contains implementation playbooks for contributors and AI agents.
   - Baseline controls and evidence expectations.
 - [Production Setup Checklist](operations/production-setup-checklist.md)
   - End-to-end deployment wiring (Render + Vercel + providers).
+- [Background Jobs](operations/background-jobs.md)
+  - Postgres-backed job queue and worker process.
+- [Email](operations/email.md)
+  - Transactional email adapter and Resend configuration.
+- [File Uploads](operations/file-uploads.md)
+  - Disk and S3/R2 upload configurations.
+- [Audit Logs](operations/audit-logs.md)
+  - Audit events table and API.
 - [Observability (OpenTelemetry)](operations/observability.md)
   - Local tracing collector and production export configuration.
 - [Product Analytics (PostHog)](operations/product-analytics.md)

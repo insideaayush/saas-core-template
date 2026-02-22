@@ -3,9 +3,9 @@
 This checklist wires the template end-to-end in production with:
 
 - Frontend on Vercel
-- Backend + Postgres on Render
+- Backend + Worker + Postgres on Render
 - Redis on Upstash
-- Providers: Clerk (auth), Stripe (billing), PostHog (analytics), Sentry (error reporting), Crisp (support), Grafana Cloud (telemetry)
+- Providers: Clerk (auth), Stripe (billing), Resend (email), PostHog (analytics), Sentry (error reporting), Crisp (support), Grafana Cloud (telemetry)
 
 Local development should continue to work with console/noop defaults and Docker Compose infra.
 
@@ -13,13 +13,14 @@ Local development should continue to work with console/noop defaults and Docker 
 
 - Clerk: create an application.
 - Stripe: create an account and products/prices.
+- Resend: create an account, verify domain/sender, create API key.
 - Upstash: create a Redis database.
 - PostHog: create a project.
 - Sentry: create a project (frontend + backend can share or be separate).
 - Crisp: create a website.
 - Grafana Cloud: create a stack with OTLP endpoint + API token.
 
-## 1) Deploy backend + Postgres (Render)
+## 1) Deploy backend + worker + Postgres (Render)
 
 1. In Render, create services from `render.yaml`.
 2. Confirm backend service is reachable (Render service URL):
@@ -58,10 +59,36 @@ Set these in the backend service:
   - `ANALYTICS_PROVIDER=posthog`
   - `POSTHOG_PROJECT_KEY`
   - `POSTHOG_HOST=https://app.posthog.com` (or your host)
+- File uploads (S3 / R2)
+  - `FILE_STORAGE_PROVIDER=s3`
+  - `S3_BUCKET`
+  - `S3_REGION` (R2 uses `auto`)
+  - `S3_ENDPOINT` (R2 required)
+  - `S3_ACCESS_KEY_ID`
+  - `S3_SECRET_ACCESS_KEY`
+  - `S3_FORCE_PATH_STYLE=true`
+
+### Worker env vars (Render)
+
+The worker service runs background jobs (emails, future async tasks). Configure:
+
+- Jobs
+  - `JOBS_ENABLED=true`
+  - `JOBS_WORKER_ID=render`
+  - `JOBS_POLL_INTERVAL=1s`
+- Email (Resend)
+  - `EMAIL_PROVIDER=resend`
+  - `EMAIL_FROM=<verified sender>`
+  - `RESEND_API_KEY=<api key>`
+- Observability / error reporting
+  - `OTEL_*` and `SENTRY_*` as above
 
 ### Database migration (Render Postgres)
 
-Apply `backend/migrations/0001_identity_tenancy_billing.up.sql` against the Render Postgres database before using auth/billing endpoints.
+Apply migrations in order against Render Postgres before using auth/billing/files endpoints:
+
+- `backend/migrations/0001_identity_tenancy_billing.up.sql`
+- `backend/migrations/0002_jobs_audit_files.up.sql`
 
 ## 2) Deploy frontend (Vercel)
 
@@ -134,4 +161,6 @@ Apply `backend/migrations/0001_identity_tenancy_billing.up.sql` against the Rend
    - Sentry captures test error (optional).
    - Crisp widget loads (optional).
    - Grafana Cloud receives traces (optional).
-
+6. Background jobs:
+   - Trigger a new-user sign-in to enqueue a welcome email job.
+   - Confirm worker processes the job (Resend in prod, console locally).
