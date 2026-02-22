@@ -44,8 +44,23 @@ Every tenant-scoped business table must include `organization_id`.
 
 - Resolve active organization context on each request.
 - Verify membership before all tenant-scoped reads and writes.
-- Apply role checks for sensitive actions (billing changes, member management, settings).
+- Apply role checks for sensitive actions (billing changes, member management, audit access, settings).
 - Deny by default when organization context is missing or invalid.
+
+### RBAC roles
+
+Membership includes a `role`:
+
+- `owner`: full control of an organization.
+- `admin`: manage billing/settings and operational data.
+- `member`: default role for day-to-day usage.
+
+Role hierarchy: `owner` > `admin` > `member`.
+
+Current API enforcement:
+
+- Billing endpoints require `admin` or higher: `POST /api/v1/billing/checkout-session`, `POST /api/v1/billing/portal-session`.
+- Audit events require `admin` or higher: `GET /api/v1/audit/events`.
 
 ## API scoping conventions
 
