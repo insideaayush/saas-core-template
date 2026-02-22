@@ -34,6 +34,8 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
   - `npm run lint`
   - `npm run typecheck`
   - `npm run build` for route/config changes
+- Local E2E:
+  - `make smoke-local` (infra + api + worker + ui, plus a basic jobs processing check)
 - Configuration:
   - Validate env example files are still consistent and complete.
   - Validate deployment config changes reflect new variables (for example `render.yaml` for Render backend, and Vercel project env vars for frontend).

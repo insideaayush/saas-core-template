@@ -105,6 +105,12 @@ make infra-up
 
 This starts Postgres, Redis, and a local OpenTelemetry collector (for local tracing).
 
+Optional: run a local end-to-end smoke test (infra + api + worker + ui):
+
+```bash
+make smoke-local
+```
+
 Start backend in one terminal:
 
 ```bash

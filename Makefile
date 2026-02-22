@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: infra-up infra-down dev-api dev-ui test ci
+.PHONY: infra-up infra-down dev-api dev-ui dev-worker test ci smoke-local
 
 infra-up:
 	docker compose up -d postgres redis otel-collector
@@ -16,6 +16,9 @@ dev-worker:
 
 dev-ui:
 	cd frontend && npm run dev
+
+smoke-local:
+	bash scripts/smoke-local.sh
 
 test:
 	cd backend && go test ./...
