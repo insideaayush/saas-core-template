@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppClerkProvider } from "./clerk-provider";
+import { AppIntegrationsProvider } from "./integrations-provider";
 
 export const metadata: Metadata = {
   title: "SaaS Core Template",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AppClerkProvider>{children}</AppClerkProvider>
+        <AppClerkProvider>
+          <AppIntegrationsProvider>{children}</AppIntegrationsProvider>
+        </AppClerkProvider>
       </body>
     </html>
   );

@@ -47,6 +47,9 @@ Core variables:
   - `OTEL_TRACES_EXPORTER` (`console`, `otlp`, or `none`)
   - `OTEL_EXPORTER_OTLP_ENDPOINT` (local collector default `http://localhost:4318`)
   - `OTEL_EXPORTER_OTLP_HEADERS` (for managed OTLP auth, e.g. Grafana Cloud)
+  - `ERROR_REPORTING_PROVIDER` (`console`, `sentry`, or `none`)
+  - `SENTRY_DSN` (backend error reporting)
+  - `SENTRY_ENVIRONMENT` (defaults to empty)
   - `CLERK_SECRET_KEY`
   - `CLERK_API_URL` (default `https://api.clerk.com`)
   - `STRIPE_SECRET_KEY`
@@ -57,6 +60,14 @@ Core variables:
 - Frontend
   - `NEXT_PUBLIC_API_URL` (e.g. `http://localhost:8080`)
   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  - `NEXT_PUBLIC_ANALYTICS_PROVIDER` (`console`, `posthog`, or `none`)
+  - `NEXT_PUBLIC_POSTHOG_KEY`
+  - `NEXT_PUBLIC_POSTHOG_HOST`
+  - `NEXT_PUBLIC_SUPPORT_PROVIDER` (`crisp` or `none`)
+  - `NEXT_PUBLIC_CRISP_WEBSITE_ID`
+  - `NEXT_PUBLIC_ERROR_REPORTING_PROVIDER` (`console`, `sentry`, or `none`)
+  - `NEXT_PUBLIC_SENTRY_DSN`
+  - `NEXT_PUBLIC_SENTRY_ENVIRONMENT`
 
 ## Database migrations
 

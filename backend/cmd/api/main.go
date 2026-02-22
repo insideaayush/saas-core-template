@@ -18,6 +18,7 @@ import (
 	"saas-core-template/backend/internal/cache"
 	"saas-core-template/backend/internal/config"
 	"saas-core-template/backend/internal/db"
+	"saas-core-template/backend/internal/errorreporting"
 	"saas-core-template/backend/internal/telemetry"
 )
 
@@ -46,6 +47,20 @@ func main() {
 	}
 	defer func() {
 		_ = shutdownTelemetry(context.Background())
+	}()
+
+	reporter, err := errorreporting.New(ctx, errorreporting.Config{
+		Provider:    cfg.ErrorReportingProvider,
+		DSN:         cfg.SentryDSN,
+		Environment: cfg.SentryEnvironment,
+		Release:     cfg.Version,
+	})
+	if err != nil {
+		slog.Error("failed to initialize error reporting", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		_ = reporter.Shutdown(context.Background())
 	}()
 
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
@@ -92,9 +107,14 @@ func main() {
 		api.WithBillingService(billingService),
 		api.WithAppBaseURL(cfg.AppBaseURL),
 	)
+
+	baseHandler := apiServer.Handler()
+	baseHandler = errorreporting.NewMiddleware(reporter).Wrap(baseHandler)
+	baseHandler = otelhttp.NewHandler(baseHandler, "http")
+
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.Port),
-		Handler:           otelhttp.NewHandler(apiServer.Handler(), "http"),
+		Handler:           baseHandler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

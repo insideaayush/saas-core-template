@@ -3,6 +3,7 @@
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
 import { createBillingPortalSession, fetchViewer, type ViewerResponse } from "@/lib/api";
+import { createAnalyticsClient } from "@/lib/integrations/analytics";
 
 type LoadState = "idle" | "loading" | "error";
 
@@ -11,6 +12,10 @@ export function DashboardClient() {
   const [viewer, setViewer] = useState<ViewerResponse | null>(null);
   const [state, setState] = useState<LoadState>("idle");
   const [portalLoading, setPortalLoading] = useState(false);
+  const analytics = useMemo(
+    () => createAnalyticsClient((process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER ?? "console") as "console" | "posthog" | "none"),
+    []
+  );
 
   const hasClerk = useMemo(() => Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY), []);
 
@@ -52,6 +57,7 @@ export function DashboardClient() {
     if (!hasClerk) {
       return;
     }
+    analytics.track("billing_portal_open_clicked");
     setPortalLoading(true);
     const token = await getToken();
     if (!token) {

@@ -17,6 +17,10 @@ type Config struct {
 	OtelOTLPEndpoint   string
 	OtelOTLPHeadersRaw string
 
+	ErrorReportingProvider string
+	SentryDSN              string
+	SentryEnvironment      string
+
 	ClerkSecretKey         string
 	ClerkAPIURL            string
 	StripeSecretKey        string
@@ -39,6 +43,10 @@ func Load() (Config, error) {
 		OtelTracesExporter: getEnv("OTEL_TRACES_EXPORTER", "console"),
 		OtelOTLPEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"),
 		OtelOTLPHeadersRaw: getEnv("OTEL_EXPORTER_OTLP_HEADERS", ""),
+
+		ErrorReportingProvider: getEnv("ERROR_REPORTING_PROVIDER", "console"),
+		SentryDSN:              os.Getenv("SENTRY_DSN"),
+		SentryEnvironment:      getEnv("SENTRY_ENVIRONMENT", ""),
 
 		ClerkSecretKey:         os.Getenv("CLERK_SECRET_KEY"),
 		ClerkAPIURL:            getEnv("CLERK_API_URL", ""),

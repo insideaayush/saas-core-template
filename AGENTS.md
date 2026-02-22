@@ -55,6 +55,7 @@ This file defines non-negotiable engineering guardrails for humans and AI agents
 - Cross-cutting:
   - Re-run targeted searches for old identifiers and stale provider references.
   - Verify no secrets were added to tracked files.
+  - Confirm managed integrations remain optional and local E2E works with console/noop defaults (telemetry, analytics, error reporting, support).
 
 ## Git and change hygiene
 

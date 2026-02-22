@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { createCheckoutSession } from "@/lib/api";
+import { createAnalyticsClient } from "@/lib/integrations/analytics";
 
 const PLANS = [
   {
@@ -25,12 +26,14 @@ export function PricingClient() {
   const { getToken, orgId } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  const analytics = createAnalyticsClient((process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER ?? "console") as "console" | "posthog" | "none");
 
   const startCheckout = async (planCode: string) => {
     if (!hasClerk) {
       return;
     }
 
+    analytics.track("pricing_choose_plan_clicked", { planCode });
     setLoadingPlan(planCode);
     const token = await getToken();
     if (!token) {
