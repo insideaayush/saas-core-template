@@ -87,8 +87,15 @@ Core variables:
 
 SQL migrations live in `backend/migrations/`.
 
-Apply them with your preferred migration tool before using auth/billing endpoints.
-Initial migration files:
+Apply them before using auth/billing endpoints.
+
+Recommended: run the built-in migration CLI (tracks applied migrations in `schema_migrations`):
+
+```bash
+make migrate-up
+```
+
+Initial migration files (applied in order):
 
 - `backend/migrations/0001_identity_tenancy_billing.up.sql`
 - `backend/migrations/0002_jobs_audit_files.up.sql`

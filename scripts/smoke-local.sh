@@ -167,11 +167,11 @@ CREATE DATABASE ${SMOKE_DB_NAME};
 SQL
 
 if [[ "${SKIP_MIGRATIONS}" == "0" ]]; then
-  echo "==> applying migrations (inside postgres container)"
-  for f in backend/migrations/*.up.sql; do
-    echo "  - ${f}"
-    cat "${f}" | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d "${SMOKE_DB_NAME}" >/dev/null
-  done
+  echo "==> applying migrations"
+  (
+    cd backend
+    DATABASE_URL="${DATABASE_URL}" go run ./cmd/migrate up -dir ./migrations
+  )
 fi
 
 echo "==> starting api"

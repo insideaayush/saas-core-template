@@ -30,6 +30,9 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
 - Backend:
   - `gofmt` on changed files
   - `go test ./...`
+- Migrations:
+  - `make migrate-status` (optional)
+  - `make migrate-up` (when migrations change)
 - Frontend:
   - `npm run lint`
   - `npm run typecheck`

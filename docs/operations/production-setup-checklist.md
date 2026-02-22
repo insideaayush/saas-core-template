@@ -85,7 +85,16 @@ The worker service runs background jobs (emails, future async tasks). Configure:
 
 ### Database migration (Render Postgres)
 
-Apply migrations in order against Render Postgres before using auth/billing/files endpoints:
+Apply migrations against Render Postgres before using auth/billing/files endpoints.
+
+Recommended (tracks applied migrations in `schema_migrations`):
+
+```bash
+cd backend
+DATABASE_URL="<render postgres url>" go run ./cmd/migrate up -dir ./migrations
+```
+
+Migrations (applied in order):
 
 - `backend/migrations/0001_identity_tenancy_billing.up.sql`
 - `backend/migrations/0002_jobs_audit_files.up.sql`
