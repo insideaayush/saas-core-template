@@ -32,10 +32,11 @@ func Init(ctx context.Context, cfg Config) (ShutdownFunc, error) {
 		serviceName = "backend"
 	}
 
+	baseRes := resource.Default()
 	res, err := resource.Merge(
-		resource.Default(),
+		baseRes,
 		resource.NewWithAttributes(
-			semconv.SchemaURL,
+			baseRes.SchemaURL(),
 			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion(strings.TrimSpace(cfg.Version)),
 			semconv.DeploymentEnvironment(strings.TrimSpace(cfg.Environment)),
