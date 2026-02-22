@@ -18,7 +18,7 @@ dev-ui:
 	cd frontend && npm run dev
 
 smoke-local:
-	bash scripts/smoke-local.sh
+	bash scripts/smoke-local.sh $(SMOKE_ARGS)
 
 test:
 	cd backend && go test ./...

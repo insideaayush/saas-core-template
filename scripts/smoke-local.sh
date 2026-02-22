@@ -42,7 +42,13 @@ API_PORT="${PORT:-8080}"
 API_BASE="http://localhost:${API_PORT}"
 UI_BASE="http://localhost:3000"
 
-DATABASE_URL_DEFAULT="postgres://postgres:postgres@localhost:5432/saas_core_template?sslmode=disable"
+SMOKE_DB_NAME="${SMOKE_DB_NAME:-saas_core_template_smoke}"
+if [[ ! "${SMOKE_DB_NAME}" =~ ^[a-zA-Z0-9_]+$ ]]; then
+  echo "invalid SMOKE_DB_NAME (expected [a-zA-Z0-9_]+): ${SMOKE_DB_NAME}" >&2
+  exit 2
+fi
+
+DATABASE_URL_DEFAULT="postgres://postgres:postgres@localhost:5432/${SMOKE_DB_NAME}?sslmode=disable"
 REDIS_URL_DEFAULT="redis://localhost:6379/0"
 
 export DATABASE_URL="${DATABASE_URL:-$DATABASE_URL_DEFAULT}"
@@ -150,11 +156,21 @@ if [[ "${NO_INFRA}" == "0" ]]; then
   wait_for "redis" "docker compose exec -T redis redis-cli ping | grep -q PONG" 90
 fi
 
+echo "==> preparing smoke database (${SMOKE_DB_NAME})"
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d postgres >/dev/null <<SQL
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = '${SMOKE_DB_NAME}'
+  AND pid <> pg_backend_pid();
+DROP DATABASE IF EXISTS ${SMOKE_DB_NAME};
+CREATE DATABASE ${SMOKE_DB_NAME};
+SQL
+
 if [[ "${SKIP_MIGRATIONS}" == "0" ]]; then
   echo "==> applying migrations (inside postgres container)"
   for f in backend/migrations/*.up.sql; do
     echo "  - ${f}"
-    cat "${f}" | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d saas_core_template >/dev/null
+    cat "${f}" | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d "${SMOKE_DB_NAME}" >/dev/null
   done
 fi
 
@@ -179,7 +195,7 @@ if [[ "${SKIP_WORKER}" == "0" ]]; then
 
   echo "==> testing jobs (enqueue -> worker processes -> done)"
   JOB_ID="$(
-    docker compose exec -T postgres psql -qtA -U postgres -d saas_core_template -v ON_ERROR_STOP=1 -c \
+    docker compose exec -T postgres psql -qtA -U postgres -d "${SMOKE_DB_NAME}" -v ON_ERROR_STOP=1 -c \
       "INSERT INTO jobs (type, payload, status, run_at) VALUES ('send_email', '{\"to\":\"smoke@example.com\",\"subject\":\"Smoke test\",\"text\":\"Hello from smoke test.\"}'::jsonb, 'queued', now()) RETURNING id::text;"
   )"
   JOB_ID="$(echo "${JOB_ID}" | tr -d '[:space:]')"
@@ -188,7 +204,7 @@ if [[ "${SKIP_WORKER}" == "0" ]]; then
     exit 1
   fi
 
-  wait_for "job ${JOB_ID} done" "docker compose exec -T postgres psql -qtA -U postgres -d saas_core_template -c \"SELECT status FROM jobs WHERE id = '${JOB_ID}'\" | tr -d '[:space:]' | grep -q '^done$'" 30
+  wait_for "job ${JOB_ID} done" "docker compose exec -T postgres psql -qtA -U postgres -d \"${SMOKE_DB_NAME}\" -c \"SELECT status FROM jobs WHERE id = '${JOB_ID}'\" | tr -d '[:space:]' | grep -q '^done$'" 30
 fi
 
 if [[ "${SKIP_UI}" == "0" ]]; then

@@ -111,6 +111,14 @@ Optional: run a local end-to-end smoke test (infra + api + worker + ui):
 make smoke-local
 ```
 
+If your local Node version can't run Next.js, skip the UI step:
+
+```bash
+make smoke-local SMOKE_ARGS=--skip-ui
+```
+
+Smoke test uses a separate Postgres database (default `saas_core_template_smoke`) and recreates it each run. Override with `SMOKE_DB_NAME=<name>`.
+
 Start backend in one terminal:
 
 ```bash
