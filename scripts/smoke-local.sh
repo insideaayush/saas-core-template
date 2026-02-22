@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -z "${BASH_VERSION:-}" ]]; then
+  exec bash "$0" "$@"
+fi
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
@@ -39,7 +43,7 @@ for arg in "$@"; do
 done
 
 API_PORT="${PORT:-8080}"
-API_BASE="http://localhost:${API_PORT}"
+API_BASE=""
 UI_BASE="http://localhost:3000"
 
 SMOKE_DB_NAME="${SMOKE_DB_NAME:-saas_core_template_smoke}"
@@ -47,6 +51,37 @@ if [[ ! "${SMOKE_DB_NAME}" =~ ^[a-zA-Z0-9_]+$ ]]; then
   echo "invalid SMOKE_DB_NAME (expected [a-zA-Z0-9_]+): ${SMOKE_DB_NAME}" >&2
   exit 2
 fi
+
+port_is_open() {
+  local port="$1"
+  (echo >/dev/tcp/127.0.0.1/"${port}") >/dev/null 2>&1
+}
+
+pick_free_port() {
+  local base_port="$1"
+  local max_tries="${2:-25}"
+  local port="${base_port}"
+  local i=0
+
+  while (( i < max_tries )); do
+    if port_is_open "${port}"; then
+      port=$((port + 1))
+      i=$((i + 1))
+      continue
+    fi
+    echo "${port}"
+    return 0
+  done
+
+  return 1
+}
+
+API_PORT="$(pick_free_port "${API_PORT}" 25 || true)"
+if [[ -z "${API_PORT}" ]]; then
+  echo "could not find a free port starting from ${PORT:-8080}" >&2
+  exit 1
+fi
+API_BASE="http://localhost:${API_PORT}"
 
 DATABASE_URL_DEFAULT="postgres://postgres:postgres@localhost:5432/${SMOKE_DB_NAME}?sslmode=disable"
 REDIS_URL_DEFAULT="redis://localhost:6379/0"
@@ -57,7 +92,7 @@ export APP_BASE_URL="${APP_BASE_URL:-$UI_BASE}"
 export APP_ENV="${APP_ENV:-development}"
 export APP_VERSION="${APP_VERSION:-smoke}"
 
-export OTEL_TRACES_EXPORTER="${OTEL_TRACES_EXPORTER:-console}"
+export OTEL_TRACES_EXPORTER="${OTEL_TRACES_EXPORTER:-none}"
 export ANALYTICS_PROVIDER="${ANALYTICS_PROVIDER:-console}"
 export ERROR_REPORTING_PROVIDER="${ERROR_REPORTING_PROVIDER:-console}"
 export EMAIL_PROVIDER="${EMAIL_PROVIDER:-console}"
@@ -73,20 +108,71 @@ API_PID=""
 WORKER_PID=""
 UI_PID=""
 
+SCRIPT_PGID="$(ps -o pgid= $$ 2>/dev/null | tr -d '[:space:]' || true)"
+
+start_bg() {
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$@" &
+  else
+    "$@" &
+  fi
+}
+
+kill_process_group() {
+  local pid="$1"
+  if [[ -z "${pid}" ]]; then
+    return 0
+  fi
+  if ! kill -0 "${pid}" 2>/dev/null; then
+    return 0
+  fi
+
+  local pgid
+  pgid="$(ps -o pgid= "${pid}" 2>/dev/null | tr -d '[:space:]' || true)"
+  if [[ -n "${pgid}" && -n "${SCRIPT_PGID}" && "${pgid}" == "${SCRIPT_PGID}" ]]; then
+    kill -TERM "${pid}" 2>/dev/null || true
+  elif [[ -n "${pgid}" ]]; then
+    kill -TERM -- "-${pgid}" 2>/dev/null || true
+  else
+    kill -TERM "${pid}" 2>/dev/null || true
+  fi
+}
+
+wait_gone() {
+  local pid="$1"
+  local timeout_seconds="${2:-5}"
+  local start
+  start="$(date +%s)"
+
+  while kill -0 "${pid}" 2>/dev/null; do
+    local now
+    now="$(date +%s)"
+    if (( now - start > timeout_seconds )); then
+      return 1
+    fi
+    sleep 1
+  done
+  return 0
+}
+
 cleanup() {
   set +e
-  if [[ -n "${UI_PID}" ]] && kill -0 "${UI_PID}" 2>/dev/null; then
-    kill "${UI_PID}" 2>/dev/null || true
-    wait "${UI_PID}" 2>/dev/null || true
-  fi
-  if [[ -n "${WORKER_PID}" ]] && kill -0 "${WORKER_PID}" 2>/dev/null; then
-    kill "${WORKER_PID}" 2>/dev/null || true
-    wait "${WORKER_PID}" 2>/dev/null || true
-  fi
-  if [[ -n "${API_PID}" ]] && kill -0 "${API_PID}" 2>/dev/null; then
-    kill "${API_PID}" 2>/dev/null || true
-    wait "${API_PID}" 2>/dev/null || true
-  fi
+  kill_process_group "${UI_PID}"
+  kill_process_group "${WORKER_PID}"
+  kill_process_group "${API_PID}"
+
+  for pid in "${UI_PID}" "${WORKER_PID}" "${API_PID}"; do
+    if [[ -z "${pid}" ]]; then
+      continue
+    fi
+    if wait_gone "${pid}" 5; then
+      wait "${pid}" 2>/dev/null || true
+      continue
+    fi
+
+    kill -KILL "${pid}" 2>/dev/null || true
+    wait "${pid}" 2>/dev/null || true
+  done
 
   if [[ "${DOWN_AFTER}" == "1" ]]; then
     docker compose down >/dev/null 2>&1 || true
@@ -177,10 +263,7 @@ if [[ "${SKIP_MIGRATIONS}" == "0" ]]; then
 fi
 
 echo "==> starting api"
-(
-  cd backend
-  PORT="${API_PORT}" go run ./cmd/api
-) &
+start_bg bash -c "cd backend && PORT='${API_PORT}' exec go run ./cmd/api"
 API_PID="$!"
 
 wait_http_ok "api /healthz" "${API_BASE}/healthz" 60
@@ -189,10 +272,7 @@ wait_http_ok "api /api/v1/meta" "${API_BASE}/api/v1/meta" 60
 
 if [[ "${SKIP_WORKER}" == "0" ]]; then
   echo "==> starting worker"
-  (
-    cd backend
-    go run ./cmd/worker
-  ) &
+  start_bg bash -c "cd backend && exec go run ./cmd/worker"
   WORKER_PID="$!"
 
   echo "==> testing jobs (enqueue -> worker processes -> done)"
