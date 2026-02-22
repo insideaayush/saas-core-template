@@ -26,6 +26,8 @@ This directory contains implementation playbooks for contributors and AI agents.
 
 - [SOC 2 Foundations](operations/compliance-soc2-foundations.md)
   - Baseline controls and evidence expectations.
+- [Observability (OpenTelemetry)](operations/observability.md)
+  - Local tracing collector and production export configuration.
 - [Provider Migration Playbook](operations/provider-migration-playbook.md)
   - Dual-run, just-in-time migration, and cutover strategy.
 - [Agent Workflow Runbook](operations/agent-workflow.md)

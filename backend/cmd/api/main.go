@@ -11,12 +11,14 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"saas-core-template/backend/internal/api"
 	"saas-core-template/backend/internal/auth"
 	"saas-core-template/backend/internal/billing"
 	"saas-core-template/backend/internal/cache"
 	"saas-core-template/backend/internal/config"
 	"saas-core-template/backend/internal/db"
+	"saas-core-template/backend/internal/telemetry"
 )
 
 const appName = "saas-core-template-api"
@@ -29,6 +31,22 @@ func main() {
 	}
 
 	ctx := context.Background()
+
+	shutdownTelemetry, err := telemetry.Init(ctx, telemetry.Config{
+		ServiceName:    cfg.ServiceName,
+		Environment:    cfg.Env,
+		Version:        cfg.Version,
+		TracesExporter: cfg.OtelTracesExporter,
+		OTLPEndpoint:   cfg.OtelOTLPEndpoint,
+		OTLPHeaders:    telemetry.ParseOTLPHeaders(cfg.OtelOTLPHeadersRaw),
+	})
+	if err != nil {
+		slog.Error("failed to initialize telemetry", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		_ = shutdownTelemetry(context.Background())
+	}()
 
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -76,7 +94,7 @@ func main() {
 	)
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.Port),
-		Handler:           apiServer.Handler(),
+		Handler:           otelhttp.NewHandler(apiServer.Handler(), "http"),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

@@ -3,7 +3,7 @@ SHELL := /bin/sh
 .PHONY: infra-up infra-down dev-api dev-ui test ci
 
 infra-up:
-	docker compose up -d postgres redis
+	docker compose up -d postgres redis otel-collector
 
 infra-down:
 	docker compose down

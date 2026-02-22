@@ -11,6 +11,11 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	RedisURL    string
+	ServiceName string
+
+	OtelTracesExporter string
+	OtelOTLPEndpoint   string
+	OtelOTLPHeadersRaw string
 
 	ClerkSecretKey         string
 	ClerkAPIURL            string
@@ -29,6 +34,11 @@ func Load() (Config, error) {
 		Port:        getEnv("PORT", "8080"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		RedisURL:    os.Getenv("REDIS_URL"),
+		ServiceName: getEnv("OTEL_SERVICE_NAME", "saas-core-template-backend"),
+
+		OtelTracesExporter: getEnv("OTEL_TRACES_EXPORTER", "console"),
+		OtelOTLPEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"),
+		OtelOTLPHeadersRaw: getEnv("OTEL_EXPORTER_OTLP_HEADERS", ""),
 
 		ClerkSecretKey:         os.Getenv("CLERK_SECRET_KEY"),
 		ClerkAPIURL:            getEnv("CLERK_API_URL", ""),

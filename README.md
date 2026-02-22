@@ -43,6 +43,10 @@ Core variables:
   - `APP_BASE_URL` (frontend URL used for checkout return paths)
   - `APP_ENV` (`development` or `production`)
   - `APP_VERSION` (`dev`, commit SHA, or release tag)
+  - `OTEL_SERVICE_NAME` (default `saas-core-template-backend`)
+  - `OTEL_TRACES_EXPORTER` (`console`, `otlp`, or `none`)
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` (local collector default `http://localhost:4318`)
+  - `OTEL_EXPORTER_OTLP_HEADERS` (for managed OTLP auth, e.g. Grafana Cloud)
   - `CLERK_SECRET_KEY`
   - `CLERK_API_URL` (default `https://api.clerk.com`)
   - `STRIPE_SECRET_KEY`
@@ -69,6 +73,8 @@ Run infra first:
 ```bash
 make infra-up
 ```
+
+This starts Postgres, Redis, and a local OpenTelemetry collector (for local tracing).
 
 Start backend in one terminal:
 
