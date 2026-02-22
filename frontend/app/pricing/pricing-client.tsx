@@ -25,7 +25,7 @@ const PLANS = [
 ] as const;
 
 export function PricingClient() {
-  const { getToken, orgId } = useAuth();
+  const { getToken } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const analytics = createAnalyticsClient((process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER ?? "console") as "console" | "posthog" | "none");
@@ -47,7 +47,13 @@ export function PricingClient() {
     const session = await createCheckoutSession({
       token,
       planCode,
-      organizationId: orgId
+      organizationId: (() => {
+        try {
+          return window.localStorage.getItem("activeOrganizationId");
+        } catch {
+          return null;
+        }
+      })()
     });
 
     setLoadingPlan(null);

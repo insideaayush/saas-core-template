@@ -74,8 +74,16 @@ function IntegrationsWithClerk({ children }: PropsWithChildren) {
     }
 
     integrations.analytics.identify(userId);
-    integrations.analytics.group("organization", orgId ?? "none");
-    integrations.support.identify({ userId, organizationId: orgId ?? undefined });
+    const activeOrgId = (() => {
+      try {
+        return window.localStorage.getItem("activeOrganizationId");
+      } catch {
+        return null;
+      }
+    })();
+
+    integrations.analytics.group("organization", activeOrgId ?? orgId ?? "none");
+    integrations.support.identify({ userId, organizationId: activeOrgId ?? orgId ?? undefined });
     integrations.errorReporting.setUser({ id: userId });
   }, [integrations, isLoaded, orgId, userId]);
 

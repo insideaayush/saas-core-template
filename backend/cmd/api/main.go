@@ -23,6 +23,7 @@ import (
 	"saas-core-template/backend/internal/errorreporting"
 	"saas-core-template/backend/internal/files"
 	"saas-core-template/backend/internal/jobs"
+	"saas-core-template/backend/internal/orgs"
 	"saas-core-template/backend/internal/telemetry"
 )
 
@@ -101,6 +102,7 @@ func main() {
 
 	auditRecorder := audit.NewDBRecorder(pool)
 	jobStore := jobs.NewStore(pool)
+	orgService := orgs.NewService(pool, orgs.WithJobs(jobStore), orgs.WithAudit(auditRecorder))
 
 	var s3Provider *files.S3Provider
 	if cfg.FileStorageProvider == "s3" {
@@ -161,6 +163,7 @@ func main() {
 		api.WithAnalytics(analyticsClient),
 		api.WithAudit(auditRecorder),
 		api.WithFiles(filesService),
+		api.WithOrgs(orgService),
 	)
 
 	baseHandler := apiServer.Handler()

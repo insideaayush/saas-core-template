@@ -17,8 +17,30 @@ export type ViewerResponse = {
     id: string;
     name: string;
     slug: string;
+    kind: string;
     role: string;
   };
+};
+
+export type OrganizationSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  kind: string;
+  role: string;
+};
+
+export type OrganizationsResponse = {
+  organizations: OrganizationSummary[];
+};
+
+export type OrganizationMembersResponse = {
+  members: Array<{
+    userId: string;
+    primaryEmail: string;
+    role: string;
+    joinedAt: string;
+  }>;
 };
 
 export type AuditEventRecord = {
@@ -75,6 +97,112 @@ export async function fetchViewer(token: string, organizationId?: string | null)
     }
 
     return (await response.json()) as ViewerResponse;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchOrganizations(token: string): Promise<OrganizationsResponse | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/orgs`, {
+      method: "GET",
+      headers: buildAuthHeaders(token)
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as OrganizationsResponse;
+  } catch {
+    return null;
+  }
+}
+
+export async function createOrganization(params: {
+  token: string;
+  name: string;
+  slug?: string;
+}): Promise<{ organization: OrganizationSummary } | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/orgs`, {
+      method: "POST",
+      headers: {
+        ...buildAuthHeaders(params.token),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name: params.name, slug: params.slug ?? "" })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as { organization: OrganizationSummary };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchOrganizationMembers(token: string, organizationId: string): Promise<OrganizationMembersResponse | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/org/members`, {
+      method: "GET",
+      headers: buildAuthHeaders(token, organizationId)
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as OrganizationMembersResponse;
+  } catch {
+    return null;
+  }
+}
+
+export async function createOrganizationInvite(params: {
+  token: string;
+  organizationId: string;
+  email: string;
+  role?: string;
+}): Promise<{ acceptUrl: string } | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/org/invites`, {
+      method: "POST",
+      headers: {
+        ...buildAuthHeaders(params.token, params.organizationId),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email: params.email, role: params.role ?? "member" })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as { acceptUrl: string };
+  } catch {
+    return null;
+  }
+}
+
+export async function acceptOrganizationInvite(params: { token: string; inviteToken: string }): Promise<{ organization: OrganizationSummary } | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/org/invites/accept`, {
+      method: "POST",
+      headers: {
+        ...buildAuthHeaders(params.token),
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ token: params.inviteToken })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as { organization: OrganizationSummary };
   } catch {
     return null;
   }

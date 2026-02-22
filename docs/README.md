@@ -40,6 +40,8 @@ This directory contains implementation playbooks for contributors and AI agents.
   - Disk and S3/R2 upload configurations.
 - [Audit Logs](operations/audit-logs.md)
   - Audit events table and API.
+- [Organization Management](operations/organization-management.md)
+  - Team organizations, invites, membership roles, and org selection.
 - [Observability (OpenTelemetry)](operations/observability.md)
   - Local tracing collector and production export configuration.
 - [Product Analytics (PostHog)](operations/product-analytics.md)

@@ -46,6 +46,7 @@ type Organization struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Slug string `json:"slug"`
+	Kind string `json:"kind"`
 	Role string `json:"role"`
 }
 
@@ -196,7 +197,7 @@ func (s *Service) ensureUserIdentity(ctx context.Context, principal VerifiedPrin
 
 func (s *Service) ResolveOrganization(ctx context.Context, userID string, requestedOrgID string) (Organization, error) {
 	query := `
-		SELECT o.id::text, o.name, o.slug, om.role
+		SELECT o.id::text, o.name, o.slug, o.kind, om.role
 		FROM organizations o
 		INNER JOIN organization_members om ON om.organization_id = o.id
 		WHERE om.user_id = $1
@@ -211,7 +212,7 @@ func (s *Service) ResolveOrganization(ctx context.Context, userID string, reques
 	query += ` ORDER BY om.created_at ASC LIMIT 1`
 
 	var org Organization
-	if err := s.db.QueryRow(ctx, query, args...).Scan(&org.ID, &org.Name, &org.Slug, &org.Role); err != nil {
+	if err := s.db.QueryRow(ctx, query, args...).Scan(&org.ID, &org.Name, &org.Slug, &org.Kind, &org.Role); err != nil {
 		return Organization{}, ErrNoOrganization
 	}
 

@@ -61,6 +61,7 @@ Current API enforcement:
 
 - Billing endpoints require `admin` or higher: `POST /api/v1/billing/checkout-session`, `POST /api/v1/billing/portal-session`.
 - Audit events require `admin` or higher: `GET /api/v1/audit/events`.
+- Organization member management requires `admin`+ (list/invite) and `owner` (role changes/removals).
 
 ## API scoping conventions
 

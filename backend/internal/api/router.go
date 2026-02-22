@@ -16,6 +16,7 @@ import (
 	"saas-core-template/backend/internal/auth"
 	"saas-core-template/backend/internal/billing"
 	"saas-core-template/backend/internal/files"
+	"saas-core-template/backend/internal/orgs"
 )
 
 type Server struct {
@@ -30,6 +31,7 @@ type Server struct {
 	analytics  analytics.Client
 	audit      audit.Recorder
 	files      *files.Service
+	orgs       *orgs.Service
 }
 
 type serverOptions struct {
@@ -39,6 +41,7 @@ type serverOptions struct {
 	analytics      analytics.Client
 	audit          audit.Recorder
 	files          *files.Service
+	orgs           *orgs.Service
 }
 
 func NewServer(appName string, env string, version string, db *pgxpool.Pool, redisClient *redis.Client, opts ...func(*serverOptions)) *Server {
@@ -59,6 +62,7 @@ func NewServer(appName string, env string, version string, db *pgxpool.Pool, red
 		analytics:  defaultAnalytics(options.analytics),
 		audit:      defaultAudit(options.audit),
 		files:      options.files,
+		orgs:       options.orgs,
 	}
 }
 
@@ -112,12 +116,25 @@ func WithFiles(service *files.Service) func(*serverOptions) {
 	}
 }
 
+func WithOrgs(service *orgs.Service) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.orgs = service
+	}
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("GET /readyz", s.readyz)
 	mux.HandleFunc("GET /api/v1/meta", s.meta)
 	mux.HandleFunc("GET /api/v1/auth/me", s.requireAuth(s.authMe))
+	mux.HandleFunc("GET /api/v1/orgs", s.requireAuth(s.orgsList))
+	mux.HandleFunc("POST /api/v1/orgs", s.requireAuth(s.orgsCreate))
+	mux.HandleFunc("GET /api/v1/org/members", s.requireOrgRole(orgRoleAdmin, s.orgMembersList))
+	mux.HandleFunc("POST /api/v1/org/invites", s.requireOrgRole(orgRoleAdmin, s.orgInvitesCreate))
+	mux.HandleFunc("POST /api/v1/org/invites/accept", s.requireAuth(s.orgInvitesAccept))
+	mux.HandleFunc("PATCH /api/v1/org/members/{userId}", s.requireOrgRole(orgRoleOwner, s.orgMembersUpdateRole))
+	mux.HandleFunc("DELETE /api/v1/org/members/{userId}", s.requireOrgRole(orgRoleOwner, s.orgMembersRemove))
 	mux.HandleFunc("POST /api/v1/billing/checkout-session", s.requireOrgRole(orgRoleAdmin, s.billingCheckoutSession))
 	mux.HandleFunc("POST /api/v1/billing/portal-session", s.requireOrgRole(orgRoleAdmin, s.billingPortalSession))
 	mux.HandleFunc("POST /api/v1/billing/webhook", s.billingWebhook)
