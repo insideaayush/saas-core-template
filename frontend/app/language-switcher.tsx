@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { LOCALES, type Locale } from "@/lib/i18n/messages";
-import { localeCookieName } from "@/lib/i18n/locale";
+import { localeCookieName } from "@/lib/i18n/locale-cookie";
 import { Button } from "@/components/ui/button";
 
 export function LanguageSwitcher({ currentLocale }: { currentLocale: Locale }) {
