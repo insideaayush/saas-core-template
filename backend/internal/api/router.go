@@ -11,8 +11,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"saas-core-template/backend/internal/analytics"
+	"saas-core-template/backend/internal/audit"
 	"saas-core-template/backend/internal/auth"
 	"saas-core-template/backend/internal/billing"
+	"saas-core-template/backend/internal/files"
+	"saas-core-template/backend/internal/orgs"
 )
 
 type Server struct {
@@ -24,12 +28,20 @@ type Server struct {
 	redis      *redis.Client
 	auth       *auth.Service
 	billing    *billing.Service
+	analytics  analytics.Client
+	audit      audit.Recorder
+	files      *files.Service
+	orgs       *orgs.Service
 }
 
 type serverOptions struct {
 	authService    *auth.Service
 	billingService *billing.Service
 	appBaseURL     string
+	analytics      analytics.Client
+	audit          audit.Recorder
+	files          *files.Service
+	orgs           *orgs.Service
 }
 
 func NewServer(appName string, env string, version string, db *pgxpool.Pool, redisClient *redis.Client, opts ...func(*serverOptions)) *Server {
@@ -47,7 +59,25 @@ func NewServer(appName string, env string, version string, db *pgxpool.Pool, red
 		redis:      redisClient,
 		auth:       options.authService,
 		billing:    options.billingService,
+		analytics:  defaultAnalytics(options.analytics),
+		audit:      defaultAudit(options.audit),
+		files:      options.files,
+		orgs:       options.orgs,
 	}
+}
+
+func defaultAnalytics(client analytics.Client) analytics.Client {
+	if client == nil {
+		return analytics.NewNoop()
+	}
+	return client
+}
+
+func defaultAudit(recorder audit.Recorder) audit.Recorder {
+	if recorder == nil {
+		return audit.NewNoop()
+	}
+	return recorder
 }
 
 func WithAuthService(authService *auth.Service) func(*serverOptions) {
@@ -68,15 +98,52 @@ func WithAppBaseURL(appBaseURL string) func(*serverOptions) {
 	}
 }
 
+func WithAnalytics(client analytics.Client) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.analytics = client
+	}
+}
+
+func WithAudit(recorder audit.Recorder) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.audit = recorder
+	}
+}
+
+func WithFiles(service *files.Service) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.files = service
+	}
+}
+
+func WithOrgs(service *orgs.Service) func(*serverOptions) {
+	return func(opts *serverOptions) {
+		opts.orgs = service
+	}
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("GET /readyz", s.readyz)
 	mux.HandleFunc("GET /api/v1/meta", s.meta)
 	mux.HandleFunc("GET /api/v1/auth/me", s.requireAuth(s.authMe))
-	mux.HandleFunc("POST /api/v1/billing/checkout-session", s.requireOrg(s.billingCheckoutSession))
-	mux.HandleFunc("POST /api/v1/billing/portal-session", s.requireOrg(s.billingPortalSession))
+	mux.HandleFunc("GET /api/v1/orgs", s.requireAuth(s.orgsList))
+	mux.HandleFunc("POST /api/v1/orgs", s.requireAuth(s.orgsCreate))
+	mux.HandleFunc("GET /api/v1/org/members", s.requireOrgRole(orgRoleAdmin, s.orgMembersList))
+	mux.HandleFunc("POST /api/v1/org/invites", s.requireOrgRole(orgRoleAdmin, s.orgInvitesCreate))
+	mux.HandleFunc("POST /api/v1/org/invites/accept", s.requireAuth(s.orgInvitesAccept))
+	mux.HandleFunc("PATCH /api/v1/org/members/{userId}", s.requireOrgRole(orgRoleOwner, s.orgMembersUpdateRole))
+	mux.HandleFunc("DELETE /api/v1/org/members/{userId}", s.requireOrgRole(orgRoleOwner, s.orgMembersRemove))
+	mux.HandleFunc("POST /api/v1/billing/checkout-session", s.requireOrgRole(orgRoleAdmin, s.billingCheckoutSession))
+	mux.HandleFunc("POST /api/v1/billing/portal-session", s.requireOrgRole(orgRoleAdmin, s.billingPortalSession))
 	mux.HandleFunc("POST /api/v1/billing/webhook", s.billingWebhook)
+	mux.HandleFunc("GET /api/v1/audit/events", s.requireOrgRole(orgRoleAdmin, s.auditEvents))
+	mux.HandleFunc("POST /api/v1/files/upload-url", s.requireOrg(s.filesUploadURL))
+	mux.HandleFunc("POST /api/v1/files/{id}/upload", s.requireOrg(s.filesDirectUpload))
+	mux.HandleFunc("POST /api/v1/files/{id}/complete", s.requireOrg(s.filesComplete))
+	mux.HandleFunc("GET /api/v1/files/{id}/download-url", s.requireOrg(s.filesDownloadURL))
+	mux.HandleFunc("GET /api/v1/files/{id}/download", s.requireOrg(s.filesDownload))
 
 	return withCommonMiddleware(mux)
 }
@@ -158,6 +225,12 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		s.analytics.Track(r.Context(), analytics.Event{
+			Name:       "auth_authenticated",
+			DistinctID: user.ID,
+			Properties: map[string]any{"provider": "clerk"},
+		})
+
 		ctx := context.WithValue(r.Context(), authUserContextKey, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
@@ -209,6 +282,7 @@ func (s *Server) billingCheckoutSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	user := authUserFromContext(r.Context())
 	org := authOrgFromContext(r.Context())
 	if org.ID == "" {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
@@ -242,6 +316,21 @@ func (s *Server) billingCheckoutSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	s.analytics.Track(r.Context(), analytics.Event{
+		Name:       "billing_checkout_session_created",
+		DistinctID: user.ID,
+		Properties: map[string]any{
+			"organization_id": org.ID,
+			"plan_code":       req.PlanCode,
+		},
+	})
+	_ = s.audit.Record(r.Context(), audit.Event{
+		OrganizationID: org.ID,
+		UserID:         user.ID,
+		Action:         "billing_checkout_session_created",
+		Data:           map[string]any{"plan_code": req.PlanCode},
+	})
+
 	writeJSON(w, http.StatusOK, map[string]string{"url": session.URL})
 }
 
@@ -251,6 +340,7 @@ func (s *Server) billingPortalSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user := authUserFromContext(r.Context())
 	org := authOrgFromContext(r.Context())
 	if org.ID == "" {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
@@ -271,6 +361,20 @@ func (s *Server) billingPortalSession(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "failed_to_create_portal_session"})
 		return
 	}
+
+	s.analytics.Track(r.Context(), analytics.Event{
+		Name:       "billing_portal_session_created",
+		DistinctID: user.ID,
+		Properties: map[string]any{
+			"organization_id": org.ID,
+		},
+	})
+	_ = s.audit.Record(r.Context(), audit.Event{
+		OrganizationID: org.ID,
+		UserID:         user.ID,
+		Action:         "billing_portal_session_created",
+		Data:           map[string]any{},
+	})
 
 	writeJSON(w, http.StatusOK, map[string]string{"url": session.URL})
 }
@@ -339,4 +443,239 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func (s *Server) auditEvents(w http.ResponseWriter, r *http.Request) {
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	reader, ok := s.audit.(audit.Reader)
+	if !ok {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "audit_not_configured"})
+		return
+	}
+
+	events, err := reader.ListByOrganization(r.Context(), org.ID, 50)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed_to_list_audit_events"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"events": events})
+}
+
+func (s *Server) filesUploadURL(w http.ResponseWriter, r *http.Request) {
+	if s.files == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "files_not_configured"})
+		return
+	}
+
+	user := authUserFromContext(r.Context())
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	var req struct {
+		Filename    string `json:"filename"`
+		ContentType string `json:"contentType"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_request_body"})
+		return
+	}
+
+	resp, err := s.files.CreateUploadURL(r.Context(), files.CreateInput{
+		OrganizationID: org.ID,
+		UploaderUserID: user.ID,
+		Filename:       req.Filename,
+		ContentType:    req.ContentType,
+	}, requestBaseURL(r))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed_to_create_upload_url"})
+		return
+	}
+
+	s.analytics.Track(r.Context(), analytics.Event{
+		Name:       "file_upload_url_created",
+		DistinctID: user.ID,
+		Properties: map[string]any{"organization_id": org.ID},
+	})
+	_ = s.audit.Record(r.Context(), audit.Event{
+		OrganizationID: org.ID,
+		UserID:         user.ID,
+		Action:         "file_upload_url_created",
+		Data:           map[string]any{"filename": req.Filename},
+	})
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) filesDirectUpload(w http.ResponseWriter, r *http.Request) {
+	if s.files == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "files_not_configured"})
+		return
+	}
+
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	fileID := strings.TrimSpace(r.PathValue("id"))
+	if fileID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing_file_id"})
+		return
+	}
+
+	if err := r.ParseMultipartForm(25 * 1024 * 1024); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_multipart_form"})
+		return
+	}
+
+	f, header, err := r.FormFile("file")
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing_file"})
+		return
+	}
+	defer f.Close()
+
+	if err := s.files.HandleDirectUpload(r.Context(), org.ID, fileID, f, header); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed_to_upload_file"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "uploaded"})
+}
+
+func (s *Server) filesDownload(w http.ResponseWriter, r *http.Request) {
+	if s.files == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "files_not_configured"})
+		return
+	}
+
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	fileID := strings.TrimSpace(r.PathValue("id"))
+	if fileID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing_file_id"})
+		return
+	}
+
+	url, err := s.files.GetDownloadURL(r.Context(), org.ID, fileID, requestBaseURL(r))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed_to_get_download_url"})
+		return
+	}
+
+	// Direct download for local disk provider.
+	if strings.HasPrefix(url, requestBaseURL(r)+"/api/v1/files/") {
+		if err := s.files.ServeDirectDownload(w, r, org.ID, fileID); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed_to_download_file"})
+			return
+		}
+		return
+	}
+
+	http.Redirect(w, r, url, http.StatusFound)
+}
+
+func (s *Server) filesDownloadURL(w http.ResponseWriter, r *http.Request) {
+	if s.files == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "files_not_configured"})
+		return
+	}
+
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	fileID := strings.TrimSpace(r.PathValue("id"))
+	if fileID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing_file_id"})
+		return
+	}
+
+	base := requestBaseURL(r)
+	url, err := s.files.GetDownloadURL(r.Context(), org.ID, fileID, base)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed_to_get_download_url"})
+		return
+	}
+
+	downloadType := "presigned"
+	if strings.HasPrefix(url, base+"/api/v1/files/") {
+		downloadType = "direct"
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"url": url, "downloadType": downloadType})
+}
+
+func (s *Server) filesComplete(w http.ResponseWriter, r *http.Request) {
+	if s.files == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "files_not_configured"})
+		return
+	}
+
+	user := authUserFromContext(r.Context())
+	org := authOrgFromContext(r.Context())
+	if org.ID == "" {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "organization_required"})
+		return
+	}
+
+	fileID := strings.TrimSpace(r.PathValue("id"))
+	if fileID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing_file_id"})
+		return
+	}
+
+	var req struct {
+		SizeBytes int64 `json:"sizeBytes"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if err := s.files.MarkUploaded(r.Context(), org.ID, fileID, req.SizeBytes); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed_to_mark_uploaded"})
+		return
+	}
+
+	s.analytics.Track(r.Context(), analytics.Event{
+		Name:       "file_uploaded",
+		DistinctID: user.ID,
+		Properties: map[string]any{"organization_id": org.ID},
+	})
+	_ = s.audit.Record(r.Context(), audit.Event{
+		OrganizationID: org.ID,
+		UserID:         user.ID,
+		Action:         "file_uploaded",
+		Data:           map[string]any{"file_id": fileID, "size_bytes": req.SizeBytes},
+	})
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "uploaded"})
+}
+
+func requestBaseURL(r *http.Request) string {
+	proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	if proto == "" {
+		proto = "http"
+	}
+
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = r.Host
+	}
+
+	return proto + "://" + host
 }

@@ -27,5 +27,15 @@ services:
       timeout: 3s
       retries: 10
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.97.0
+    container_name: saas-core-template-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+
 volumes:
   pgdata:

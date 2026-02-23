@@ -35,7 +35,7 @@ Version bump guidance:
 
 ## CI expectations
 
-- CI runs on pushes for `main`, `develop`, `dev`, and `feature/*`, and on PRs targeting `main`, `develop`, and `dev`.
+- CI runs on pushes for `main`, `develop`, and `dev`, and on PRs targeting `main`, `develop`, and `dev`.
 - CI validates:
   - backend tests/build
   - frontend lint/typecheck/build

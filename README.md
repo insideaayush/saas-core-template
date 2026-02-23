@@ -4,6 +4,7 @@ Production-shaped foundation for launching a startup SaaS baseline quickly.
 
 ## Stack
 - Frontend: Next.js (TypeScript)
+- UI: shadcn/ui (Tailwind + Radix)
 - Backend: Go (`net/http`)
 - Database: Postgres
 - Cache: Redis (Upstash in cloud, local Redis in development)
@@ -43,6 +44,25 @@ Core variables:
   - `APP_BASE_URL` (frontend URL used for checkout return paths)
   - `APP_ENV` (`development` or `production`)
   - `APP_VERSION` (`dev`, commit SHA, or release tag)
+  - `OTEL_SERVICE_NAME` (default `saas-core-template-backend`)
+  - `OTEL_TRACES_EXPORTER` (`console`, `otlp`, or `none`)
+  - `OTEL_EXPORTER_OTLP_ENDPOINT` (local collector default `http://localhost:4318`)
+  - `OTEL_EXPORTER_OTLP_HEADERS` (for managed OTLP auth, e.g. Grafana Cloud)
+  - `ERROR_REPORTING_PROVIDER` (`console`, `sentry`, or `none`)
+  - `SENTRY_DSN` (backend error reporting)
+  - `SENTRY_ENVIRONMENT` (defaults to empty)
+  - `ANALYTICS_PROVIDER` (`console`, `posthog`, or `none`)
+  - `POSTHOG_PROJECT_KEY`
+  - `POSTHOG_HOST`
+  - `EMAIL_PROVIDER` (`console`, `resend`, or `none`)
+  - `EMAIL_FROM`
+  - `RESEND_API_KEY`
+  - `JOBS_ENABLED` (worker toggle)
+  - `JOBS_WORKER_ID`
+  - `JOBS_POLL_INTERVAL`
+  - `FILE_STORAGE_PROVIDER` (`disk`, `s3`, or `none`)
+  - `FILE_STORAGE_DISK_PATH`
+  - `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`
   - `CLERK_SECRET_KEY`
   - `CLERK_API_URL` (default `https://api.clerk.com`)
   - `STRIPE_SECRET_KEY`
@@ -53,15 +73,35 @@ Core variables:
 - Frontend
   - `NEXT_PUBLIC_API_URL` (e.g. `http://localhost:8080`)
   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  - `NEXT_PUBLIC_ANALYTICS_PROVIDER` (`console`, `posthog`, or `none`)
+  - `NEXT_PUBLIC_POSTHOG_KEY`
+  - `NEXT_PUBLIC_POSTHOG_HOST`
+  - `NEXT_PUBLIC_SUPPORT_PROVIDER` (`crisp` or `none`)
+  - `NEXT_PUBLIC_CRISP_WEBSITE_ID`
+  - `NEXT_PUBLIC_ERROR_REPORTING_PROVIDER` (`console`, `sentry`, or `none`)
+  - `NEXT_PUBLIC_SENTRY_DSN`
+  - `NEXT_PUBLIC_SENTRY_ENVIRONMENT`
+  - Locale is stored in a `locale` cookie (supported: `en`, `es`)
 
 ## Database migrations
 
 SQL migrations live in `backend/migrations/`.
 
-Apply them with your preferred migration tool before using auth/billing endpoints.
-Initial migration file:
+Apply them before using auth/billing endpoints.
+
+Recommended: run the built-in migration CLI (tracks applied migrations in `schema_migrations`):
+
+```bash
+make migrate-up
+```
+
+Initial migration files (applied in order):
 
 - `backend/migrations/0001_identity_tenancy_billing.up.sql`
+- `backend/migrations/0002_jobs_audit_files.up.sql`
+- `backend/migrations/0003_personal_workspaces.up.sql`
+- `backend/migrations/0004_team_owner_enforcement.up.sql`
+- `backend/migrations/0005_org_invites.up.sql`
 
 ## Local development
 Run infra first:
@@ -70,10 +110,32 @@ Run infra first:
 make infra-up
 ```
 
+This starts Postgres, Redis, and a local OpenTelemetry collector (for local tracing).
+
+Optional: run a local end-to-end smoke test (infra + api + worker + ui):
+
+```bash
+make smoke-local
+```
+
+If your local Node version can't run Next.js, skip the UI step:
+
+```bash
+make smoke-local SMOKE_ARGS=--skip-ui
+```
+
+Smoke test uses a separate Postgres database (default `saas_core_template_smoke`) and recreates it each run. Override with `SMOKE_DB_NAME=<name>`.
+
 Start backend in one terminal:
 
 ```bash
 make dev-api
+```
+
+Start worker in another terminal (jobs + email):
+
+```bash
+make dev-worker
 ```
 
 Start frontend in another terminal:

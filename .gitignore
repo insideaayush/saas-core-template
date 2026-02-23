@@ -12,10 +12,12 @@ frontend/.next/
 frontend/out/
 frontend/node_modules/
 *.tsbuildinfo
+frontend/pnpm-lock.yaml
 
 # Backend
 backend/bin/
 backend/api
+backend/.data/
 
 # Local infra
 pgdata/

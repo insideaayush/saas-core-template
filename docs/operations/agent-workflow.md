@@ -30,13 +30,23 @@ This runbook defines the standard operating flow for AI-agent-assisted developme
 - Backend:
   - `gofmt` on changed files
   - `go test ./...`
+- Migrations:
+  - `make migrate-status` (optional)
+  - `make migrate-up` (when migrations change)
 - Frontend:
   - `npm run lint`
   - `npm run typecheck`
   - `npm run build` for route/config changes
+- Local E2E:
+  - `make smoke-local` (infra + api + worker + ui, plus a basic jobs processing check)
 - Configuration:
   - Validate env example files are still consistent and complete.
   - Validate deployment config changes reflect new variables (for example `render.yaml` for Render backend, and Vercel project env vars for frontend).
+  - Confirm managed integrations are optional and local E2E still works with console/noop defaults (OpenTelemetry, analytics, error reporting, support widget).
+  - Confirm no secrets were committed while adding integration variables.
+  - Confirm i18n defaults render correctly (language switcher changes locale without breaking SSR pages).
+  - For UI work, prefer shadcn/ui primitives in `frontend/components/ui/` and avoid one-off styling.
+  - If adding background jobs/email, verify local worker runs (`make dev-worker`) and production checklist is updated.
 
 ## 5) Documentation and traceability
 

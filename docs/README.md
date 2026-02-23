@@ -2,6 +2,10 @@
 
 This directory contains implementation playbooks for contributors and AI agents.
 
+## Start here
+
+- `overview.md` gives a reading order and repo map.
+
 ## First 30 minutes
 
 1. Run `./scripts/init-template.sh "<new-project-name>"` if this is a new clone from template.
@@ -26,6 +30,28 @@ This directory contains implementation playbooks for contributors and AI agents.
 
 - [SOC 2 Foundations](operations/compliance-soc2-foundations.md)
   - Baseline controls and evidence expectations.
+- [Production Setup Checklist](operations/production-setup-checklist.md)
+  - End-to-end deployment wiring (Render + Vercel + providers).
+- [Background Jobs](operations/background-jobs.md)
+  - Postgres-backed job queue and worker process.
+- [Email](operations/email.md)
+  - Transactional email adapter and Resend configuration.
+- [File Uploads](operations/file-uploads.md)
+  - Disk and S3/R2 upload configurations.
+- [Audit Logs](operations/audit-logs.md)
+  - Audit events table and API.
+- [Organization Management](operations/organization-management.md)
+  - Team organizations, invites, membership roles, and org selection.
+- [Observability (OpenTelemetry)](operations/observability.md)
+  - Local tracing collector and production export configuration.
+- [Product Analytics (PostHog)](operations/product-analytics.md)
+  - Local console analytics and managed PostHog configuration.
+- [Error Reporting (Sentry)](operations/error-reporting.md)
+  - Local console error capture and managed Sentry configuration.
+- [Support (Crisp)](operations/support.md)
+  - Optional support widget integration and provider swaps.
+- [Template Gaps and Upstreaming](operations/template-gap-and-upstreaming.md)
+  - Backlog for template completion and guidance for upstreaming from child projects.
 - [Provider Migration Playbook](operations/provider-migration-playbook.md)
   - Dual-run, just-in-time migration, and cutover strategy.
 - [Agent Workflow Runbook](operations/agent-workflow.md)
@@ -58,3 +84,8 @@ Before opening a PR:
 - Confirm provider SDK usage is isolated behind interfaces/adapters.
 - Confirm logs do not include secrets or sensitive payloads.
 - Add/update docs for any auth, tenancy, billing, or compliance-sensitive change.
+
+## Frontend guides
+
+- [UI Design Guide](frontend/ui-design-guide.md)
+  - Tailwind + Radix component conventions and UI principles.

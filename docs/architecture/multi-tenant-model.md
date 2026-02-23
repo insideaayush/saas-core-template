@@ -8,6 +8,22 @@ This template uses an organization/workspace model as the default multi-tenant s
 - Product data belongs to an organization unless it is explicitly global platform metadata.
 - Effective authorization is determined by membership and role within the active organization.
 
+### Personal workspace (Option A)
+
+Every new user gets a **personal workspace** implemented as a normal `organizations` row with:
+
+- `kind = 'personal'`
+- `personal_owner_user_id = <user_id>`
+
+This personal workspace is enforced to be **single-member** (owner only). Users can still create and join other (team) organizations.
+
+### Team organizations
+
+Team organizations (`kind = 'team'`) support multiple members and roles.
+
+- The `organization_members.role` column is constrained to: `owner`, `admin`, `member`.
+- Team organizations are enforced to always have **at least one** `owner` (the last owner cannot be removed or demoted).
+
 ## Recommended tables
 
 - `organizations`
@@ -28,8 +44,24 @@ Every tenant-scoped business table must include `organization_id`.
 
 - Resolve active organization context on each request.
 - Verify membership before all tenant-scoped reads and writes.
-- Apply role checks for sensitive actions (billing changes, member management, settings).
+- Apply role checks for sensitive actions (billing changes, member management, audit access, settings).
 - Deny by default when organization context is missing or invalid.
+
+### RBAC roles
+
+Membership includes a `role`:
+
+- `owner`: full control of an organization.
+- `admin`: manage billing/settings and operational data.
+- `member`: default role for day-to-day usage.
+
+Role hierarchy: `owner` > `admin` > `member`.
+
+Current API enforcement:
+
+- Billing endpoints require `admin` or higher: `POST /api/v1/billing/checkout-session`, `POST /api/v1/billing/portal-session`.
+- Audit events require `admin` or higher: `GET /api/v1/audit/events`.
+- Organization member management requires `admin`+ (list/invite) and `owner` (role changes/removals).
 
 ## API scoping conventions
 

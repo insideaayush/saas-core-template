@@ -1,18 +1,32 @@
 import Link from "next/link";
 import { PricingClient } from "./pricing-client";
+import { getServerLocale } from "@/lib/i18n/locale";
+import { getMessages } from "@/lib/i18n/messages";
+import { t } from "@/lib/i18n/translate";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const messages = getMessages(await getServerLocale());
+
   return (
-    <main>
-      <h1>Pricing</h1>
-      <p>Simple plans designed to get from zero to production without custom billing plumbing.</p>
-      <PricingClient />
-      <section className="card" style={{ marginTop: "1rem" }}>
-        <h2>Need help choosing?</h2>
-        <p>
-          Start with Pro and upgrade anytime. If you are already onboarded, head to the <Link href="/app">dashboard</Link>.
-        </p>
+    <div className="space-y-6">
+      <section className="space-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight">{t(messages, "pricing.title")}</h1>
+        <p className="text-muted-foreground">{t(messages, "pricing.subtitle")}</p>
       </section>
-    </main>
+      <PricingClient />
+      <Card>
+        <CardHeader>
+          <CardTitle>{t(messages, "pricing.helpTitle")}</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          {t(messages, "pricing.helpBody")}{" "}
+          <Link className="underline underline-offset-4" href="/app">
+            dashboard
+          </Link>
+          .
+        </CardContent>
+      </Card>
+    </div>
   );
 }
