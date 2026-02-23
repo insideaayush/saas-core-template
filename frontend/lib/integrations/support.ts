@@ -36,8 +36,7 @@ export function createSupportClient(provider: SupportProvider): SupportClient {
 
 declare global {
   interface Window {
-    $crisp?: any[];
+    $crisp?: Array<unknown>;
     CRISP_WEBSITE_ID?: string;
   }
 }
-

@@ -2,9 +2,15 @@ import type { Messages } from "./messages";
 
 export function t(messages: Messages, key: string): string {
   const parts = key.split(".");
-  let current: any = messages;
+  let current: unknown = messages;
   for (const part of parts) {
-    current = current?.[part];
+    if (!current || typeof current !== "object") {
+      current = undefined;
+      break;
+    }
+
+    const record = current as Record<string, unknown>;
+    current = record[part];
   }
 
   if (typeof current === "string") {

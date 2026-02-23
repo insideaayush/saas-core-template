@@ -19,11 +19,9 @@ export function createErrorReportingClient(provider: ErrorReportingProvider): Er
     return {
       init: () => {},
       captureException: (error, context) => {
-        // eslint-disable-next-line no-console
         console.error("[error-reporting]", error, context);
       },
       setUser: (user) => {
-        // eslint-disable-next-line no-console
         console.info("[error-reporting:user]", user);
       }
     };
@@ -46,7 +44,7 @@ export function createErrorReportingClient(provider: ErrorReportingProvider): Er
       });
     },
     captureException: (error, context) => {
-      window.Sentry?.withScope?.((scope: any) => {
+      window.Sentry?.withScope?.((scope) => {
         if (context) {
           scope.setContext?.("extra", context);
         }
@@ -81,7 +79,11 @@ function maybeLoadSentryBrowser() {
 
 declare global {
   interface Window {
-    Sentry?: any;
+    Sentry?: {
+      init?: (config: { dsn: string; environment?: string; release?: string }) => void;
+      withScope?: (fn: (scope: { setContext?: (name: string, data: Record<string, unknown>) => void }) => void) => void;
+      captureException?: (error: unknown) => void;
+      setUser?: (user: { id: string } | null) => void;
+    };
   }
 }
-

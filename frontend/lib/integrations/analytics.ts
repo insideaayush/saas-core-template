@@ -9,7 +9,6 @@ export type AnalyticsClient = {
 
 function log(method: string, event: string, props?: Record<string, unknown>) {
   const payload = props ? JSON.stringify(props) : "";
-  // eslint-disable-next-line no-console
   console.info(`[analytics:${method}] ${event}`, payload);
 }
 
@@ -60,4 +59,3 @@ declare global {
     };
   }
 }
-
