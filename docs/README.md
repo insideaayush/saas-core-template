@@ -50,6 +50,8 @@ This directory contains implementation playbooks for contributors and AI agents.
   - Local console error capture and managed Sentry configuration.
 - [Support (Crisp)](operations/support.md)
   - Optional support widget integration and provider swaps.
+- [Template Gaps and Upstreaming](operations/template-gap-and-upstreaming.md)
+  - Backlog for template completion and guidance for upstreaming from child projects.
 - [Provider Migration Playbook](operations/provider-migration-playbook.md)
   - Dual-run, just-in-time migration, and cutover strategy.
 - [Agent Workflow Runbook](operations/agent-workflow.md)
